@@ -13,7 +13,7 @@ const DAIKO_CATEGORIES = [
     name: '💰 80円 基本強化パック',
     description: 'ゲーム進行の基礎となる必須アイテムをお得に強化。',
     items: [
-      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約99999）まで増加。ガチャ引き放題！' },
+      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約58000）まで増加。ガチャ引き放題！' },
       { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値（約99999999）まで増加。キャラ強化に必須！' },
       { id: 't_norm', name: '通常チケ(100枚)', price: 80, description: '通常チケットを上限の100枚まで付与。' },
       { id: 't_rare', name: 'レアチケ(100枚)', price: 80, description: 'レアチケットを上限の100枚まで付与。' },
@@ -612,3 +612,4 @@ export default function App() {
     </div>
   );
 }
+
