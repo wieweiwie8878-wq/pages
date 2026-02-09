@@ -2,19 +2,38 @@ import React, { useState, useEffect } from 'react';
 
 const API_BASE = "https://worker.nasserl.workers.dev"; // あなたのWorkersのURL
 
-// 商品データにdescriptionフィールドを追加しました
+// 商品データにdescriptionフィールドを追加し、リストを更新しました
 const DAIKO_ITEMS = [
+  // 80円グループ
   { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値まで増加させます。' },
   { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値まで増加させます。' },
-  { id: 't_n', name: '通常チケ指定', price: 80, description: '通常チケットを指定数（1-100枚）付与します。' },
-  { id: 't_r', name: 'レアチケ指定', price: 80, description: 'レアチケットを指定数（1-100枚）付与します。' },
-  { id: 'st_1', name: '1ステ解放', price: 80, description: 'ステージを1つ解放します。' },
+  { id: 't_norm', name: '通常チケ(100枚)', price: 80, description: '通常チケットを100枚付与します。' },
+  { id: 't_rare', name: 'レアチケ(100枚)', price: 80, description: 'レアチケットを100枚付与します。' },
+  { id: 'st_one', name: '1ステージ開放', price: 80, description: '任意のステージを1つ解放します。' },
+
+  // 100円グループ
   { id: 'np', name: 'NP変更', price: 100, description: 'NPの値を変更します。' },
   { id: 'item', name: 'アイテム変更', price: 100, description: '各種アイテムの数を変更します。' },
   { id: 'eye', name: 'キャッツアイ', price: 100, description: 'キャッツアイの値を変更します。' },
+  { id: 'bitan', name: 'ネコビタン変更', price: 100, description: 'ネコビタンの数を変更します。' },
+  { id: 'castle_m', name: '城素材変更', price: 100, description: '城の素材の数を変更します。' },
+  { id: 'matatabi', name: 'マタタビ変更', price: 100, description: 'マタタビの数を変更します。' },
+  { id: 'leader', name: 'リーダーシップ', price: 100, description: 'リーダーシップの数を変更します。' },
+  { id: 'ptime', name: 'プレイ時間', price: 100, description: 'プレイ時間を変更します。' },
+  { id: 'clv', name: '城のレベル', price: 100, description: '城のレベルを変更します。' },
+  { id: 'g_char', name: 'グループキャラ解放', price: 100, description: 'グループキャラクターを解放します。' },
+  { id: 'st_ch', name: 'ステージ章解放', price: 100, description: 'ステージの章を解放します。' },
+  { id: 'legend', name: 'レジェステ解放', price: 100, description: 'レジェンドステージを解放します。' },
+  { id: 'treasure', name: 'お宝解放', price: 100, description: 'お宝を解放します。' },
+
+  // 150円グループ
   { id: 'all_c', name: '全キャラ解放', price: 150, description: '全てのキャラクターを解放します。' },
+
+  // 200円 (元のリストにあった項目、今回は変更なし)
   { id: 'err', name: 'エラーキャラ消去', price: 200, description: 'エラー表示されているキャラクターを削除します。' },
-  { id: 'ban_g', name: '🛡️ BAN保証', price: 500, description: '万が一のアカウントBAN時に保証を提供します。' }
+
+  // 500円グループ
+  { id: 'ban_g', name: '🛡️ BAN保証オプション', price: 500, description: '万が一のアカウントBAN時に保証を提供します。（超推奨）' }
 ];
 
 const ACC_ITEMS = [
