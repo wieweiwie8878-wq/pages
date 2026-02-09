@@ -79,8 +79,8 @@ export default function App() {
 
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [paypayLinkValue, setPaypayLinkValue] = useState<string>(''); // PayPayリンクの入力値
-  const [paypayLinkError, setPaypayLinkError] = useState<string | null>(null); // PayPayリンクのバリデーションエラー
+  const [paypayLinkValue, setPaypayLinkValue] = useState<string>('');
+  const [paypayLinkError, setPaypayLinkError] = useState<string | null>(null);
 
   const refresh = () => fetch(`${API_BASE}/api/admin/stats`, { headers: { 'Authorization': password } }).then(res => res.json()).then(setData);
   const adminAction = (id: any, action: string, extra = {}) => {
@@ -229,11 +229,12 @@ export default function App() {
   const handlePaypayLinkChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setPaypayLinkValue(value);
-    const paypayRegex = /^https:\/\/paypay\.ne\.jp\/link\/[a-zA-Z0-9]+$/;
+    // paypay.ne.jp が含まれていればOKとする正規表現
+    const paypayRegex = /paypay\.ne\.jp/i; // i は大文字小文字を区別しない
     if (value === '' || paypayRegex.test(value)) {
       setPaypayLinkError(null);
     } else {
-      setPaypayLinkError('PayPayリンクの形式が正しくありません。(例: https://paypay.ne.jp/link/xxxxxx)');
+      setPaypayLinkError('PayPay関連のURLではありません。URLに "paypay.ne.jp" が含まれているか確認してください。');
     }
   };
 
@@ -245,12 +246,12 @@ export default function App() {
       return;
     }
 
-    const fd = new FormData(e.currentTarget); // e.target から e.currentTarget に変更
+    const fd = new FormData(e.currentTarget);
     const order = {
       username: fd.get('un'),
       tc: fd.get('tc'),
       ap: fd.get('ap'),
-      paypayUrl: paypayLinkValue, // stateから取得
+      paypayUrl: paypayLinkValue,
       services: allItemsFlat.filter(p=>selected.includes(p.id)).map(p=>p.name).join(','),
       total: totalSelectedPrice,
       browserId: localStorage.getItem('wei_id') || Math.random().toString(36).substring(2, 15)
