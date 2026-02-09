@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 
 const API_BASE = "https://worker.nasserl.workers.dev"; // あなたのWorkers
-const SERVICES: any = {
-  "neko": { name: "猫缶カンスト", price: 80 }, "xp": { name: "XPカンスト", price: 80 },
-  "all_c": { name: "全キャラ解放", price: 150 }, "ban": { name: "🛡️ BAN保証", price: 500 }
-};
+const PRODUCTS = [
+  { id: 'neko', name: '猫缶カンスト', price: 80, desc: '猫缶を最大まで補充します' },
+  { id: 'xp', name: 'XPカンスト', price: 80, desc: '経験値を最大まで補充します' },
+  { id: 'all_c', name: '全キャラ解放', price: 150, desc: '全キャラクターを使用可能にします' },
+  { id: 'strong', name: '最強初期垢セット', price: 500, desc: '猫缶+XP+全キャラ解放済みの新規垢' },
+  { id: 'ban', name: '🛡️ BAN保証', price: 500, desc: '万が一のBAN時に無償で復旧します' }
+];
 
 const getBrowserId = () => {
-  let id = localStorage.getItem('wei_browser_id');
+  let id = localStorage.getItem('wei_id');
   if (!id) {
     id = Math.random().toString(36).substring(2) + Date.now().toString(36);
-    localStorage.setItem('wei_browser_id', id);
+    localStorage.setItem('wei_id', id);
   }
   return id;
 };
@@ -19,87 +22,105 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [password, setPassword] = useState(localStorage.getItem('admin_pw') || '');
   const [data, setData] = useState<any>(null);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [cart, setCart] = useState<string[]>([]);
   const isAdmin = window.location.hostname.startsWith('admin.');
-
-  const refresh = () => fetch(`${API_BASE}/api/admin/stats`, { headers: { 'Authorization': password } }).then(res => res.json()).then(setData);
 
   const login = async () => {
     const res = await fetch(`${API_BASE}/api/auth`, { method: 'POST', body: JSON.stringify({ password }), headers: { 'Content-Type': 'application/json' } });
-    if (res.ok) { setIsLoggedIn(true); localStorage.setItem('admin_pw', password); refresh(); } else { alert("認証失敗"); }
+    if (res.ok) { setIsLoggedIn(true); localStorage.setItem('admin_pw', password); refresh(); }
   };
+
+  const refresh = () => fetch(`${API_BASE}/api/admin/stats`, { headers: { 'Authorization': password } }).then(res => res.json()).then(setData);
 
   const handleOrder = async (e: any) => {
     e.preventDefault();
-    if (selected.length === 0) return alert("メニューを選んでください");
     const fd = new FormData(e.target);
+    const totalPrice = cart.reduce((s, id) => s + (PRODUCTS.find(p => p.id === id)?.price || 0), 0);
     const order = {
-      username: fd.get('un'), userId: fd.get('uid'), tc: fd.get('tc'), ap: fd.get('ap'), paypayUrl: fd.get('p'),
-      services: selected.map(k => SERVICES[k].name).join(', '),
-      total: selected.reduce((s, k) => s + SERVICES[k].price, 0),
+      username: fd.get('un'),
+      tc: fd.get('tc'),
+      ap: fd.get('ap'),
+      paypayUrl: fd.get('p'),
+      services: cart.map(id => PRODUCTS.find(p => p.id === id)?.name).join(', '),
+      total: totalPrice,
       browserId: getBrowserId()
     };
     const res = await fetch(`${API_BASE}/api/sync-order`, { method: 'POST', body: JSON.stringify(order), headers: { 'Content-Type': 'application/json' } });
-    if (res.ok) { alert("注文完了！"); window.location.reload(); }
+    if (res.ok) { alert("ご注文を承りました！"); window.location.reload(); }
   };
 
-  const complete = async (id: number, uid: string) => {
-    const f = document.getElementById(`f-${id}`) as HTMLInputElement;
-    if (!f.files?.[0]) return alert("画像を選んでください");
-    const fd = new FormData(); fd.append('id', id.toString()); fd.append('userId', uid); fd.append('image', f.files[0]);
-    await fetch(`${API_BASE}/api/admin/complete`, { method: 'POST', body: fd, headers: { 'Authorization': password } });
-    alert("完了！"); refresh();
-  };
-
-  useEffect(() => { if (isAdmin && password && !isLoggedIn) login(); }, []);
+  useEffect(() => { if (isAdmin && password) login(); }, []);
 
   if (isAdmin) {
-    if (!isLoggedIn) return (
-      <div style={{background:'#000', color:'#fff', height:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontFamily:'sans-serif'}}>
-        <h1>Wei Admin</h1>
-        <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={{padding:'10px', margin:'10px', background:'#111', color:'#fff', border:'1px solid #4af', textAlign:'center'}} placeholder="Password" />
-        <button onClick={login} style={{background:'#4af', color:'#fff', border:'none', padding:'10px 30px', borderRadius:'5px', cursor:'pointer'}}>ENTER</button>
-      </div>
-    );
-
     return (
-      <div style={{background:'#111', color:'#fff', minHeight:'100vh', padding:'20px', fontFamily:'sans-serif'}}>
-        <h2>代行司令塔</h2>
-        <div style={{display:'grid', gap:'15px'}}>
-          {data?.orders?.map((o: any) => (
-            <div key={o.id} style={{background:'#222', padding:'15px', borderRadius:'10px', border:'1px solid #333'}}>
-              <div style={{display:'flex', justifyContent:'space-between'}}>
-                <strong>#{o.id} {o.username} (¥{o.totalPrice})</strong>
-                <div style={{fontSize:'10px', textAlign:'right', color:'#ff6666'}}>IP: {o.ipAddress}<br/>ID: {o.browserId?.substring(0,8)}</div>
-              </div>
-              <div style={{margin:'10px 0'}}><code>ID: {o.transferCode} / PW: {o.authPassword}</code></div>
-              <input type="file" id={`f-${o.id}`} accept="image/*" style={{fontSize:'12px'}} />
-              <button onClick={() => complete(o.id, o.userId)} style={{background:'#28a745', color:'#fff', border:'none', padding:'5px 10px', borderRadius:'5px', cursor:'pointer', marginTop:'10px'}}>画像送付 & 完了</button>
+      <div style={{background:'#0a0a0a', color:'#fff', minHeight:'100vh', padding:'20px', fontFamily:'"Helvetica Neue", Arial, sans-serif'}}>
+        <h1 style={{borderLeft:'4px solid #4af', paddingLeft:'15px'}}>Admin Dashboard</h1>
+        {data?.orders?.map((o: any) => (
+          <div key={o.id} style={{background:'#1a1a1a', margin:'15px 0', padding:'20px', borderRadius:'10px', border:'1px solid #333'}}>
+            <div style={{display:'flex', justifyContent:'space-between'}}>
+              <span style={{fontWeight:'bold'}}>#{o.id} {o.username}</span>
+              <span style={{color:'#ff4444', fontSize:'12px'}}>IP: {o.ipAddress}</span>
             </div>
-          ))}
-        </div>
+            <p style={{color:'#aaa', fontSize:'14px'}}>{o.services} / ¥{o.totalPrice}</p>
+            <div style={{background:'#000', padding:'10px', marginTop:'10px', borderRadius:'5px'}}>
+              <code>Code: {o.transferCode} | Pass: {o.authPassword}</code>
+            </div>
+            <a href={o.paypayUrl} target="_blank" style={{display:'inline-block', marginTop:'10px', color:'#4af'}}>PayPayを確認</a>
+          </div>
+        ))}
       </div>
     );
   }
 
   return (
-    <div style={{background:'#111', color:'#fff', minHeight:'100vh', padding:'20px', display:'flex', flexDirection:'column', alignItems:'center', fontFamily:'sans-serif'}}>
-      <h1 style={{color:'#4af', fontSize:'32px'}}>Wei 代行注文</h1>
-      <form onSubmit={handleOrder} style={{background:'#222', padding:'25px', borderRadius:'15px', width:'100%', maxWidth:'400px', display:'flex', flexDirection:'column', gap:'10px'}}>
-        <input name="un" placeholder="名前" style={inputStyle} required />
-        <input name="uid" placeholder="Discord ID" style={inputStyle} required />
-        <input name="tc" placeholder="引き継ぎコード" style={inputStyle} required />
-        <input name="ap" placeholder="認証番号" style={inputStyle} required />
-        <textarea name="p" placeholder="PayPay受取リンク" style={{...inputStyle, height:'60px'}} required />
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'5px'}}>
-          {Object.entries(SERVICES).map(([k, v]: any) => (
-            <div key={k} onClick={() => setSelected(prev => prev.includes(k) ? prev.filter(x => x!==k) : [...prev, k])} style={{padding:'8px', background: selected.includes(k)?'#4af':'#333', color: selected.includes(k)?'#000':'#fff', borderRadius:'5px', cursor:'pointer', fontSize:'11px', textAlign:'center'}}>{v.name}</div>
+    <div style={{background:'#f5f5f7', color:'#1d1d1f', minHeight:'100vh', fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'}}>
+      {/* Navbar */}
+      <nav style={{background:'#fff', padding:'15px 20px', borderBottom:'1px solid #d2d2d7', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <span style={{fontSize:'20px', fontWeight:'bold', letterSpacing:'1px'}}>WEI 代行 SHOP</span>
+        <span style={{fontSize:'12px', color:'#86868b'}}>Made in Japan Quality</span>
+      </nav>
+
+      <div style={{maxWidth:'900px', margin:'40px auto', padding:'0 20px'}}>
+        <h2 style={{fontSize:'32px', textAlign:'center', marginBottom:'40px'}}>商品ラインナップ</h2>
+        
+        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'20px'}}>
+          {PRODUCTS.map(p => (
+            <div key={p.id} style={{background:'#fff', padding:'25px', borderRadius:'18px', boxShadow:'0 4px 20px rgba(0,0,0,0.05)', display:'flex', flexDirection:'column', justifyContent:'space-between'}}>
+              <div>
+                <h3 style={{fontSize:'20px', margin:'0 0 10px 0'}}>{p.name}</h3>
+                <p style={{fontSize:'14px', color:'#86868b', lineHeight:'1.5'}}>{p.desc}</p>
+              </div>
+              <div style={{marginTop:'20px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <span style={{fontSize:'22px', fontWeight:'600'}}>¥{p.price}</span>
+                <button 
+                  onClick={() => setCart(prev => prev.includes(p.id) ? prev.filter(x => x!==p.id) : [...prev, p.id])}
+                  style={{background: cart.includes(p.id) ? '#1d1d1f' : '#0071e3', color:'#fff', border:'none', padding:'8px 20px', borderRadius:'20px', cursor:'pointer', fontSize:'14px'}}
+                >
+                  {cart.includes(p.id) ? '削除' : '選択する'}
+                </button>
+              </div>
+            </div>
           ))}
         </div>
-        <button type="submit" style={{background:'#4af', color:'#fff', border:'none', padding:'15px', borderRadius:'10px', fontWeight:'bold', cursor:'pointer'}}>注文確定</button>
-      </form>
+
+        {cart.length > 0 && (
+          <div style={{marginTop:'50px', background:'#fff', padding:'30px', borderRadius:'24px', boxShadow:'0 10px 40px rgba(0,0,0,0.1)'}}>
+            <h2 style={{marginBottom:'20px', textAlign:'center'}}>注文手続き</h2>
+            <form onSubmit={handleOrder} style={{display:'flex', flexDirection:'column', gap:'15px'}}>
+              <input name="un" placeholder="お名前（Discord名など）" style={inputS} required />
+              <input name="tc" placeholder="引き継ぎコード" style={inputS} required />
+              <input name="ap" placeholder="認証番号" style={inputS} required />
+              <textarea name="p" placeholder="PayPay受取リンクを貼り付け" style={{...inputS, height:'80px'}} required />
+              <div style={{textAlign:'center', padding:'20px', fontSize:'24px', fontWeight:'bold'}}>
+                合計: ¥{cart.reduce((s, id) => s + (PRODUCTS.find(p => p.id === id)?.price || 0), 0)}
+              </div>
+              <button type="submit" style={{background:'#0071e3', color:'#fff', border:'none', padding:'18px', borderRadius:'14px', fontSize:'18px', fontWeight:'bold', cursor:'pointer'}}>注文を確定して送信</button>
+            </form>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-const inputStyle = { background: '#000', color: '#fff', border: '1px solid #444', padding: '10px', borderRadius: '5px' };
+const inputS = { padding:'15px', borderRadius:'12px', border:'1px solid #d2d2d7', fontSize:'16px', background:'#f5f5f7' };
