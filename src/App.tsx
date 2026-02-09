@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 
 const API_BASE = "https://worker.nasserl.workers.dev"; // WorkersのURL
 
-// 商品データの定義（アイコン追加などでリッチに）
+// 商品データの定義
 const DAIKO_CATEGORIES = [
   {
     id: 'basic_services_80',
@@ -70,14 +70,14 @@ const ACC_ITEMS = [
 const DAIKO_LIST = DAIKO_CATEGORIES.flatMap(category => category.items);
 const ACC_LIST = ACC_ITEMS;
 
-// スタイル定義（CSS-in-JS）
+// スタイル定義
 const styles = {
   container: {
     fontFamily: '"Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif',
     background: '#f4f6f8',
     minHeight: '100vh',
     color: '#333',
-    paddingBottom: '80px', // フッター用スペース
+    paddingBottom: '80px',
   },
   header: {
     background: '#fff',
@@ -99,15 +99,6 @@ const styles = {
     margin: '20px auto',
     padding: '0 20px',
   },
-  sectionTitle: {
-    fontSize: '18px',
-    fontWeight: 'bold',
-    color: '#555',
-    marginBottom: '10px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
   card: {
     background: '#fff',
     borderRadius: '16px',
@@ -117,10 +108,6 @@ const styles = {
     border: '1px solid #eaeaea',
     cursor: 'pointer',
     transition: 'transform 0.2s, box-shadow 0.2s',
-  },
-  cardHover: {
-    transform: 'translateY(-2px)',
-    boxShadow: '0 8px 20px rgba(0,0,0,0.06)',
   },
   categoryHeader: {
     display: 'flex',
@@ -267,7 +254,7 @@ const CustomModal = ({ message, onClose }: { message: string; onClose: () => voi
   <div style={styles.modalOverlay}>
     <div style={styles.modalContent}>
       <h3 style={{marginTop:0}}>お知らせ</h3>
-      <p style={{fontSize: '16px', lineHeight: '1.5'}}>{message}</p>
+      <p style={{fontSize: '16px', lineHeight: '1.5', whiteSpace: 'pre-wrap'}}>{message}</p>
       <button onClick={onClose} style={{...styles.checkoutBtn, width: '100%', marginTop: '20px'}}>閉じる</button>
     </div>
   </div>
@@ -295,20 +282,32 @@ export default function App() {
   const [modalMsg, setModalMsg] = useState('');
 
   // データ取得関連
-  const refreshAdmin = () => fetch(`${API_BASE}/api/admin/stats`, { headers: { 'Authorization': password } }).then(res => res.json()).then(setData);
+  const refreshAdmin = async (pw: string) => {
+      try {
+          const res = await fetch(`${API_BASE}/api/admin/stats`, { headers: { 'Authorization': pw } });
+          if (res.ok) {
+              const d = await res.json();
+              setData(d);
+              setIsLoggedIn(true);
+              localStorage.setItem('admin_pw', pw);
+          } else {
+              throw new Error("Auth failed");
+          }
+      } catch (e) {
+          setIsLoggedIn(false);
+      }
+  };
   
   const adminAction = (id: any, action: string, extra = {}) => {
     const fd = new FormData(); fd.append('id', id); fd.append('action', action);
     Object.entries(extra).forEach(([k, v]: any) => fd.append(k, v));
-    fetch(`${API_BASE}/api/admin/action`, { method: 'POST', body: fd, headers: { 'Authorization': password } }).then(refreshAdmin);
+    fetch(`${API_BASE}/api/admin/action`, { method: 'POST', body: fd, headers: { 'Authorization': password } }).then(() => refreshAdmin(password));
   };
 
   useEffect(() => {
-    if (isAdmin && password) {
-      fetch(`${API_BASE}/api/auth`, { method: 'POST', body: JSON.stringify({ password }), headers: {'Content-Type': 'application/json'} })
-        .then(res => res.json())
-        .then(d => { if(d.ok) { setIsLoggedIn(true); refreshAdmin(); } else { setIsLoggedIn(false); localStorage.removeItem('admin_pw'); }})
-        .catch(() => setIsLoggedIn(false));
+    if (isAdmin && password && !isLoggedIn) {
+      const timer = setTimeout(() => refreshAdmin(password), 500);
+      return () => clearTimeout(timer);
     }
   }, [isAdmin]);
 
@@ -317,33 +316,43 @@ export default function App() {
     if (!isLoggedIn) return (
       <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', height:'100vh', background:'#111', color:'#fff'}}>
         <h1>WEI ADMIN</h1>
-        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={{padding:'10px', borderRadius:'5px', border:'none', marginBottom:'10px'}} placeholder="Password" />
-        <button onClick={() => { localStorage.setItem('admin_pw', password); window.location.reload(); }} style={styles.checkoutBtn}>LOGIN</button>
+        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={{padding:'10px', borderRadius:'5px', border:'none', marginBottom:'10px', fontSize:'16px'}} placeholder="Password" />
+        <button onClick={() => refreshAdmin(password)} style={styles.checkoutBtn}>LOGIN</button>
       </div>
     );
     return (
       <div style={styles.adminContainer}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
           <h2>魏 司令官：管理画面</h2>
-          <button onClick={()=>{localStorage.removeItem('admin_pw'); window.location.reload();}} style={{background:'#e74c3c', color:'#fff', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer'}}>Logout</button>
+          <button onClick={()=>{setIsLoggedIn(false); localStorage.removeItem('admin_pw'); setPassword(''); setData(null);}} style={{background:'#e74c3c', color:'#fff', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer'}}>Logout</button>
         </div>
-        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:'15px'}}>
+        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))', gap:'15px'}}>
           {data?.orders?.map((o: any) => (
-            <div key={o.id} style={{background:'#222', border:'1px solid #444', padding:'15px', borderRadius:'10px'}}>
-              <div style={{display:'flex', justifyContent:'space-between'}}>
-                <strong>#{o.id} {o.username}</strong>
-                <span style={{color:'#4af'}}>¥{o.totalPrice}</span>
+            <div key={o.id} style={{background:'#222', border:'1px solid #444', padding:'15px', borderRadius:'10px', position:'relative'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
+                <span style={{background:'#0071e3', padding:'2px 8px', borderRadius:'4px', fontSize:'12px'}}>#{o.id}</span>
+                <strong>{o.username}</strong>
+                <span style={{color:'#4af', fontWeight:'bold'}}>¥{o.totalPrice}</span>
               </div>
-              <div style={{fontSize:'12px', color:'#ff4444', margin:'5px 0'}}>IP: {o.ipAddress}</div>
-              <div style={{background:'#000', padding:'8px', borderRadius:'5px', fontFamily:'monospace', fontSize:'12px', wordBreak:'break-all'}}>
-                ID: {o.transferCode}<br/>PW: {o.authPassword}
+              <div style={{fontSize:'12px', color:'#aaa', marginBottom:'5px'}}>
+                <div>📅 {new Date(o.createdAt || Date.now()).toLocaleString()}</div>
+                <div>🔒 IP: <span style={{color:'#ff4444'}}>{o.ipAddress}</span></div>
+                <div>🆔 Device: {o.browserId}</div>
               </div>
-              <div style={{fontSize:'12px', marginTop:'8px', color:'#ccc'}}>{o.services}</div>
-              <div style={{display:'flex', gap:'5px', marginTop:'15px'}}>
+              <div style={{background:'#000', padding:'10px', borderRadius:'5px', fontFamily:'monospace', fontSize:'12px', wordBreak:'break-all', marginBottom:'10px'}}>
+                <div style={{color:'#888'}}>引き継ぎ情報:</div>
+                ID: <span style={{color:'#fff', fontWeight:'bold'}}>{o.transferCode}</span><br/>
+                PW: <span style={{color:'#fff', fontWeight:'bold'}}>{o.authPassword}</span>
+              </div>
+              <div style={{fontSize:'12px', marginBottom:'10px', padding:'5px', background:'rgba(255,255,255,0.05)', borderRadius:'5px'}}>
+                <strong>注文内容:</strong><br/>
+                {o.services}
+              </div>
+              <div style={{display:'flex', gap:'5px', flexWrap:'wrap'}}>
                 <input type="file" id={`f-${o.id}`} style={{display:'none'}} onChange={(e)=>adminAction(o.id, 'complete', {image: e.target.files![0], userId: o.userId})} />
-                <button onClick={()=>document.getElementById(`f-${o.id}`)?.click()} style={{flex:1, background:'#28a745', color:'#fff', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer'}}>完了通知</button>
-                <button onClick={()=>adminAction(o.id, 'scrub')} style={{background:'#555', border:'none', color:'#fff', borderRadius:'5px', padding:'8px', cursor:'pointer'}}>抹消</button>
-                <a href={o.paypayUrl} target="_blank" rel="noreferrer" style={{background:'#fff', color:'#000', textDecoration:'none', padding:'8px 12px', borderRadius:'5px', fontSize:'14px'}}>PayPay</a>
+                <button onClick={()=>document.getElementById(`f-${o.id}`)?.click()} style={{flex:1, background:'#28a745', color:'#fff', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer'}}>✅ 完了通知</button>
+                <button onClick={()=>adminAction(o.id, 'scrub')} style={{flex:1, background:'#555', border:'none', color:'#fff', borderRadius:'5px', padding:'8px', cursor:'pointer'}}>🗑️ 抹消</button>
+                <a href={o.paypayUrl} target="_blank" rel="noreferrer" style={{flex:1, background:'#fff', color:'#000', textDecoration:'none', padding:'8px', borderRadius:'5px', fontSize:'12px', textAlign:'center', display:'flex', alignItems:'center', justifyContent:'center'}}>PayPay確認</a>
               </div>
             </div>
           ))}
@@ -379,7 +388,6 @@ export default function App() {
   const handlePaypay = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setPaypayLinkValue(val);
-    // 緩和されたバリデーション
     setPaypayLinkError(val && /paypay\.ne\.jp/.test(val) ? null : 'PayPayのリンクを含めてください');
   };
 
@@ -419,7 +427,6 @@ export default function App() {
       <main style={styles.main}>
         {view === 'main' ? (
           <>
-            {/* メインメニュー */}
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginBottom:'30px'}}>
               <div onClick={() => setView('daiko')} style={styles.card}>
                 <div style={{fontSize:'40px', marginBottom:'10px'}}>🎮</div>
@@ -433,7 +440,6 @@ export default function App() {
               </div>
             </div>
             
-            {/* お知らせエリア */}
             <div style={{...styles.card, background:'#fff9c4', border:'1px solid #fbc02d'}}>
               <h3 style={{margin:'0 0 10px 0', fontSize:'16px'}}>📢 お知らせ</h3>
               <p style={{margin:0, fontSize:'14px'}}>
@@ -446,14 +452,12 @@ export default function App() {
           <div>
             <button onClick={() => { setView('main'); setFormOpen(false); }} style={{background:'none', border:'none', color:'#0071e3', fontSize:'16px', cursor:'pointer', marginBottom:'20px'}}>← 戻る</button>
             
-            {/* 検索 & 全選択 */}
             <input type="text" placeholder="🔍 商品を検索..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} style={styles.searchBar} />
             <div style={{display:'flex', gap:'10px', marginBottom:'20px'}}>
               <button onClick={()=>toggleAll(true)} style={{...styles.checkoutBtn, padding:'8px 15px', fontSize:'12px', background:'#eee', color:'#333'}}>全て選択</button>
               <button onClick={()=>toggleAll(false)} style={{...styles.checkoutBtn, padding:'8px 15px', fontSize:'12px', background:'#eee', color:'#333'}}>全て解除</button>
             </div>
 
-            {/* 商品リスト */}
             {(view === 'daiko' ? filteredCategories : [{id:'acc', name:'アカウント販売', description:'初期アカウント', items:ACC_ITEMS}]).map(cat => (
               <div key={cat.id}>
                 <div onClick={() => toggleCategory(cat.id)} style={styles.categoryHeader}>
@@ -484,7 +488,6 @@ export default function App() {
           </div>
         )}
 
-        {/* 注文フォーム (オーバーレイまたは下部表示) */}
         {formOpen && selected.length > 0 && (
           <div style={styles.formContainer}>
             <h2 style={{textAlign:'center', marginBottom:'20px'}}>注文情報の入力</h2>
@@ -518,7 +521,6 @@ export default function App() {
         )}
       </main>
 
-      {/* フローティングフッター (カート) */}
       {!formOpen && selected.length > 0 && (
         <div style={styles.floatingFooter}>
           <div style={{fontWeight:'bold', fontSize:'16px'}}>
@@ -528,7 +530,6 @@ export default function App() {
         </div>
       )}
 
-      {/* モーダル */}
       {showModal && <CustomModal message={modalMsg} onClose={() => { setShowModal(false); if(modalMsg.includes('注文を受け付け')) window.location.reload(); }} />}
     </div>
   );
