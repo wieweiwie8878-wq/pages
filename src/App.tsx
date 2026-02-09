@@ -2,14 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 
 const API_BASE = "https://worker.nasserl.workers.dev"; // あなたのWorkersのURL
 
-// 商品データをカテゴリでグループ化し、名前と説明を具体的に変更しました
 const DAIKO_CATEGORIES = [
   {
     id: 'basic_services_80',
     name: '💰 80円 基本強化パック (猫缶、XP、チケットなど)',
     description: 'ゲームの基本となる猫缶やXPのカンスト、各種チケットの付与、特定のステージ開放など、人気の基本サービスをお得な価格でご提供します。',
     items: [
-      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約58000）まで増加させます。' },
+      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約99999）まで増加させます。' },
       { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値（約99999999）まで増加させます。' },
       { id: 't_norm', name: '通常チケ(100枚)', price: 80, description: '通常チケットを上限の100枚まで付与します。' },
       { id: 't_rare', name: 'レアチケ(100枚)', price: 80, description: 'レアチケットを上限の100枚まで付与します。' },
@@ -67,9 +66,8 @@ const ACC_ITEMS = [
   { id: 'acc_s', name: '【最強セット】500円', price: 500, description: '猫缶、XP、全キャラ解放（一部を除く）の最強アカウントです。' }
 ];
 
-// DAIKO_LIST は DAIKO_CATEGORIES からすべてのアイテムをフラットにして取得するように変更
 const DAIKO_LIST = DAIKO_CATEGORIES.flatMap(category => category.items);
-const ACC_LIST = ACC_ITEMS; // 垢販売は今回はカテゴリ分けなし
+const ACC_LIST = ACC_ITEMS;
 
 export default function App() {
   const [view, setView] = useState<'main' | 'daiko' | 'account'>('main');
@@ -79,10 +77,10 @@ export default function App() {
   const [data, setData] = useState<any>(null);
   const isAdmin = window.location.hostname.startsWith('admin.');
 
-  // カテゴリのアコーディオン開閉状態を管理するステート
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
-  // 検索キーワードを管理するステート
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [paypayLinkValue, setPaypayLinkValue] = useState<string>(''); // PayPayリンクの入力値
+  const [paypayLinkError, setPaypayLinkError] = useState<string | null>(null); // PayPayリンクのバリデーションエラー
 
   const refresh = () => fetch(`${API_BASE}/api/admin/stats`, { headers: { 'Authorization': password } }).then(res => res.json()).then(setData);
   const adminAction = (id: any, action: string, extra = {}) => {
@@ -117,7 +115,7 @@ export default function App() {
         setIsLoggedIn(false);
       });
     }
-  }, [isAdmin, isLoggedIn, password]); // password を依存配列に追加
+  }, [isAdmin, isLoggedIn, password]);
 
   if (isAdmin) {
     if (!isLoggedIn) return (
@@ -166,24 +164,20 @@ export default function App() {
     );
   }
 
-  // カテゴリごとのアコーディオン開閉トグル
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev =>
       prev.includes(categoryId) ? prev.filter(id => id !== categoryId) : [...prev, categoryId]
     );
   };
 
-  // 商品選択トグル
   const toggleItemSelection = (itemId: string) => {
     setSelected(prev =>
       prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
     );
   };
 
-  // 全てのアイテムリスト（フォームの合計金額計算用）
   const allItemsFlat = useMemo(() => [...DAIKO_LIST, ...ACC_LIST], []);
 
-  // 選択された商品の合計金額を計算
   const totalSelectedPrice = useMemo(() => {
     return selected.reduce((sum, itemId) => {
       const item = allItemsFlat.find(p => p.id === itemId);
@@ -191,7 +185,6 @@ export default function App() {
     }, 0);
   }, [selected, allItemsFlat]);
 
-  // 検索とフィルタリング
   const filteredCategories = useMemo(() => {
     if (!searchTerm) {
       return DAIKO_CATEGORIES;
@@ -206,18 +199,16 @@ export default function App() {
     })).filter(category => category.items.length > 0);
   }, [searchTerm]);
 
-  // 全商品の選択/解除
   const toggleAllItems = (all: boolean) => {
     if (all) {
       setSelected(allItemsFlat.map(item => item.id));
-      setExpandedCategories(DAIKO_CATEGORIES.map(c => c.id)); // 全カテゴリを展開
+      setExpandedCategories(DAIKO_CATEGORIES.map(c => c.id));
     } else {
       setSelected([]);
-      setExpandedCategories([]); // 全カテゴリを折りたたむ
+      setExpandedCategories([]);
     }
   };
 
-  // カテゴリ内の全選択/解除
   const toggleCategoryItems = (categoryId: string, selectAll: boolean) => {
     const category = DAIKO_CATEGORIES.find(c => c.id === categoryId);
     if (!category) return;
@@ -225,17 +216,47 @@ export default function App() {
     const categoryItemIds = category.items.map(item => item.id);
     setSelected(prev => {
       if (selectAll) {
-        // 現在選択されているものにカテゴリ内のアイテムを追加 (重複は排除)
         return [...new Set([...prev, ...categoryItemIds])];
       } else {
-        // カテゴリ内のアイテムを選択解除
         return prev.filter(id => !categoryItemIds.includes(id));
       }
     });
-    // カテゴリを展開状態にする
     if (selectAll && !expandedCategories.includes(categoryId)) {
       setExpandedCategories(prev => [...prev, categoryId]);
     }
+  };
+
+  const handlePaypayLinkChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setPaypayLinkValue(value);
+    const paypayRegex = /^https:\/\/paypay\.ne\.jp\/link\/[a-zA-Z0-9]+$/;
+    if (value === '' || paypayRegex.test(value)) {
+      setPaypayLinkError(null);
+    } else {
+      setPaypayLinkError('PayPayリンクの形式が正しくありません。(例: https://paypay.ne.jp/link/xxxxxx)');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (paypayLinkError) {
+      alert(paypayLinkError);
+      return;
+    }
+
+    const fd = new FormData(e.currentTarget); // e.target から e.currentTarget に変更
+    const order = {
+      username: fd.get('un'),
+      tc: fd.get('tc'),
+      ap: fd.get('ap'),
+      paypayUrl: paypayLinkValue, // stateから取得
+      services: allItemsFlat.filter(p=>selected.includes(p.id)).map(p=>p.name).join(','),
+      total: totalSelectedPrice,
+      browserId: localStorage.getItem('wei_id') || Math.random().toString(36).substring(2, 15)
+    };
+    await fetch(`${API_BASE}/api/sync-order`, { method: 'POST', body: JSON.stringify(order), headers: { 'Content-Type': 'application/json' } });
+    alert("注文完了しました！"); window.location.reload();
   };
 
 
@@ -252,7 +273,6 @@ export default function App() {
           <div>
             <button onClick={() => setView('main')} style={{color:'#0071e3', border:'none', background:'none', marginBottom:'15px'}}>← 戻る</button>
 
-            {/* 検索バー */}
             <input
               type="text"
               placeholder="商品を検索..."
@@ -261,13 +281,11 @@ export default function App() {
               style={{ ...inputS, marginBottom: '15px', padding: '10px' }}
             />
 
-            {/* 全体選択/解除ボタン */}
             <div style={{ display: 'flex', gap: '5px', marginBottom: '15px' }}>
               <button onClick={() => toggleAllItems(true)} style={toggleAllBtnS}>全て選択</button>
               <button onClick={() => toggleAllItems(false)} style={toggleAllBtnS}>全て解除</button>
             </div>
 
-            {/* リアルタイム合計金額表示 */}
             <div style={totalPriceDisplayS}>
               合計金額: <span style={{ color: '#0071e3', fontWeight: 'bold' }}>¥{totalSelectedPrice}</span>
             </div>
@@ -275,23 +293,17 @@ export default function App() {
             <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
               {(view === 'daiko' ? filteredCategories : [{ id: 'account_sales', name: '🎁 アカウント販売 (基本セット、最強セット)', description: '即座にプレイを開始できる初期アカウントを販売しています。強力なスタートダッシュを切りましょう！', items: ACC_LIST }]).map(category => {
                 const isCategoryExpanded = expandedCategories.includes(category.id);
-                // 検索結果がないカテゴリは表示しない
                 if (view === 'daiko' && category.items.length === 0 && searchTerm) return null;
-
-                const categoryItemsSelected = category.items.every(item => selected.includes(item.id));
 
                 return (
                   <div key={category.id} style={categoryContainerS}>
-                    {/* カテゴリアコーディオンのヘッダー */}
                     <div onClick={() => toggleCategory(category.id)} style={categoryHeaderS}>
                       <div>{category.name}</div>
                       <div style={{fontSize:'12px', color:'#777'}}>{isCategoryExpanded ? '▲' : '▼'}</div>
                     </div>
-                    {/* カテゴリアコーディオンの詳細部分 (展開されている場合のみ表示) */}
                     {isCategoryExpanded && (
                       <div style={categoryContentS}>
                         <p style={{fontSize:'13px', color:'#666', marginBottom:'10px'}}>{category.description}</p>
-                        {/* カテゴリ内選択/解除ボタン */}
                         <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
                           <button onClick={(e) => { e.stopPropagation(); toggleCategoryItems(category.id, true); }} style={categoryToggleBtnS}>カテゴリ内全て選択</button>
                           <button onClick={(e) => { e.stopPropagation(); toggleCategoryItems(category.id, false); }} style={categoryToggleBtnS}>カテゴリ内全て解除</button>
@@ -316,25 +328,22 @@ export default function App() {
           </div>
         )}
         {selected.length > 0 && (
-          <form onSubmit={async (e:any)=>{
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const order = {
-              username: fd.get('un'),
-              tc: fd.get('tc'),
-              ap: fd.get('ap'),
-              paypayUrl: fd.get('p'),
-              services: allItemsFlat.filter(p=>selected.includes(p.id)).map(p=>p.name).join(','),
-              total: totalSelectedPrice, // ここで計算済みの合計金額を使用
-              browserId: localStorage.getItem('wei_id') || Math.random().toString(36).substring(2, 15) // 重複を避けるため短縮
-            };
-            await fetch(`${API_BASE}/api/sync-order`, { method: 'POST', body: JSON.stringify(order), headers: { 'Content-Type': 'application/json' } });
-            alert("注文完了しました！"); window.location.reload();
-          }} style={formS}>
+          <form onSubmit={handleSubmit} style={formS}>
             <input name="un" placeholder="お名前" style={inputS} required />
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}><input name="tc" placeholder="引き継ぎコード" style={inputS} required /><input name="ap" placeholder="認証番号/パスワード" style={inputS} required /></div>
-            <textarea name="p" placeholder="PayPayリンク (例: https://paypay.ne.jp/link/xxxxxx)" style={{...inputS, height:'80px'}} required />
-            <button type="submit" style={submitBtnS}>¥{totalSelectedPrice} で確定</button>
+            <textarea
+              name="p"
+              placeholder="PayPayリンク (例: https://paypay.ne.jp/link/xxxxxx)"
+              style={{...inputS, height:'80px', borderColor: paypayLinkError ? '#dc3545' : '#d2d2d7'}}
+              value={paypayLinkValue}
+              onChange={handlePaypayLinkChange}
+              required
+            />
+            {paypayLinkError && <p style={{fontSize:'12px', color:'#dc3545', marginTop:'-8px', marginBottom:'10px'}}>{paypayLinkError}</p>}
+            <p style={{fontSize:'12px', color:'#dc3545', marginTop:'-8px', marginBottom:'10px', textAlign: 'center'}}>
+              ⚠️ PayPayリンクの金額と、選択されたサービスの合計金額が一致しない場合、注文は受理されません。
+            </p>
+            <button type="submit" style={submitBtnS} disabled={!!paypayLinkError}>¥{totalSelectedPrice} で確定</button>
           </form>
         )}
       </main>
@@ -342,7 +351,6 @@ export default function App() {
   );
 }
 
-// スタイル定義 (一部修正・追加)
 const headerS: any = { padding:'15px', textAlign:'center', fontSize:'18px', fontWeight:'bold', borderBottom:'1px solid #d2d2d7', background:'#fff' };
 const mainCardS: any = { background:'#fff', padding:'50px 20px', borderRadius:'20px', textAlign:'center', cursor:'pointer', border:'1px solid #d2d2d7', fontSize:'18px', fontWeight:'bold' };
 
@@ -375,7 +383,7 @@ const itemDefaultS: any = {
   cursor: 'pointer',
   marginBottom: '5px',
   background: '#fff',
-  transition: 'all 0.2s ease-in-out', // ホバーエフェクト用
+  transition: 'all 0.2s ease-in-out',
 };
 const itemSelectedS: any = {
   ...itemDefaultS,
@@ -390,7 +398,6 @@ const copyS: any = { flex:1, background:'#222', color:'#fa0', border:'none', pad
 const centerS: any = { display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100vh', background:'#000' };
 const btnS: any = { background:'#4af', color:'#fff', border:'none', padding:'10px 30px', borderRadius:'5px', cursor:'pointer' };
 
-// 新しく追加したスタイル
 const toggleAllBtnS: any = {
   flex: 1,
   padding: '10px 15px',
@@ -423,4 +430,3 @@ const totalPriceDisplayS: any = {
   marginBottom: '15px',
   boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
 };
-
