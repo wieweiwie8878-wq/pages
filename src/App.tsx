@@ -13,7 +13,7 @@ const DAIKO_CATEGORIES = [
     name: '💰 80円 基本強化パック',
     description: 'ゲーム進行の基礎となる必須アイテムをお得に強化。',
     items: [
-      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約58000）まで増加。ガチャ引き放題！' },
+      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約99999）まで増加。ガチャ引き放題！' },
       { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値（約99999999）まで増加。キャラ強化に必須！' },
       { id: 't_norm', name: '通常チケ(100枚)', price: 80, description: '通常チケットを上限の100枚まで付与。' },
       { id: 't_rare', name: 'レアチケ(100枚)', price: 80, description: 'レアチケットを上限の100枚まで付与。' },
@@ -74,7 +74,7 @@ const ACC_ITEMS = [
 const DAIKO_LIST = DAIKO_CATEGORIES.flatMap(category => category.items);
 const ACC_LIST = ACC_ITEMS;
 
-// スタイル定義 (CustomModalより先に定義)
+// スタイル定義
 const styles = {
   container: {
     fontFamily: '"Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif',
@@ -261,6 +261,7 @@ export default function App() {
   
   // ユーザー情報
   const [discordUser, setDiscordUser] = useState<any>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // 注文フォーム用state
   const [formOpen, setFormOpen] = useState(false);
@@ -288,7 +289,14 @@ export default function App() {
     window.location.href = `https://discord.com/api/oauth2/authorize?${params.toString()}`;
   };
 
-  // カスタムモーダル (Appコンポーネント内で定義してhandleDiscordLoginにアクセスできるようにする)
+  const handleLogout = () => {
+    localStorage.removeItem('discord_user');
+    setDiscordUser(null);
+    setShowUserMenu(false);
+    window.location.reload();
+  };
+
+  // カスタムモーダル
   const CustomModal = ({ message, onClose }: { message: string; onClose: () => void }) => (
     <div style={styles.modalOverlay}>
       <div style={styles.modalContent}>
@@ -498,9 +506,27 @@ export default function App() {
 
   return (
     <div style={styles.container}>
-      <header style={styles.header}>
+      <header style={{...styles.header, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
         <h1 style={styles.headerTitle}>WEI STORE 🐾</h1>
-        {discordUser && <div style={{fontSize:'12px', color:'#0071e3'}}>Logged in as: {discordUser.username}</div>}
+        
+        {discordUser ? (
+            <div style={{position:'relative'}}>
+                <img 
+                    src={`https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`} 
+                    alt="User" 
+                    style={{width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', border: '2px solid #eee'}}
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                />
+                {showUserMenu && (
+                    <div style={{position: 'absolute', top: '50px', right: 0, background: '#fff', padding: '10px', borderRadius: '10px', boxShadow: '0 5px 20px rgba(0,0,0,0.15)', minWidth: '150px', zIndex: 300}}>
+                        <div style={{fontSize:'14px', fontWeight:'bold', marginBottom:'5px', paddingBottom:'5px', borderBottom:'1px solid #eee'}}>{discordUser.username}</div>
+                        <button onClick={handleLogout} style={{background:'none', border:'none', color:'#e74c3c', width:'100%', textAlign:'left', padding:'5px', cursor:'pointer', fontSize:'14px'}}>ログアウト</button>
+                    </div>
+                )}
+            </div>
+        ) : (
+            <button onClick={handleDiscordLogin} style={{background:'#5865F2', color:'#fff', border:'none', padding:'8px 15px', borderRadius:'20px', fontSize:'13px', fontWeight:'bold', cursor:'pointer'}}>Discord Login</button>
+        )}
       </header>
 
       <main style={styles.main}>
@@ -612,4 +638,3 @@ export default function App() {
     </div>
   );
 }
-
