@@ -1,63 +1,63 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
 const API_BASE = "https://worker.nasserl.workers.dev"; // あなたのWorkersのURL
 
-// 商品データをカテゴリでグループ化しました
+// 商品データをカテゴリでグループ化し、名前と説明を具体的に変更しました
 const DAIKO_CATEGORIES = [
   {
-    id: 'price80',
-    name: '80円メニュー',
-    description: '猫缶、XPカンスト、チケット付与、1ステージ開放などがお得なセットです。',
+    id: 'basic_services_80',
+    name: '💰 80円 基本強化パック (猫缶、XP、チケットなど)',
+    description: 'ゲームの基本となる猫缶やXPのカンスト、各種チケットの付与、特定のステージ開放など、人気の基本サービスをお得な価格でご提供します。',
     items: [
-      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値まで増加させます。' },
-      { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値まで増加させます。' },
-      { id: 't_norm', name: '通常チケ(100枚)', price: 80, description: '通常チケットを100枚付与します。' },
-      { id: 't_rare', name: 'レアチケ(100枚)', price: 80, description: 'レアチケットを100枚付与します。' },
-      { id: 'st_one', name: '1ステージ開放', price: 80, description: '任意のステージを1つ解放します。' },
+      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約99999）まで増加させます。' },
+      { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値（約99999999）まで増加させます。' },
+      { id: 't_norm', name: '通常チケ(100枚)', price: 80, description: '通常チケットを上限の100枚まで付与します。' },
+      { id: 't_rare', name: 'レアチケ(100枚)', price: 80, description: 'レアチケットを上限の100枚まで付与します。' },
+      { id: 'st_one', name: '1ステージ開放', price: 80, description: '指定された未開放のステージを1つ解放します。' },
     ]
   },
   {
-    id: 'price100',
-    name: '100円メニュー',
-    description: 'NP、アイテム、キャッツアイ、城素材など、多岐にわたる変更が可能です。',
+    id: 'advanced_custom_100',
+    name: '✨ 100円 応用カスタムメニュー (NP、アイテム、城素材など)',
+    description: 'NPや各種アイテム、キャッツアイ、ネコビタン、城素材、マタタビなど、ゲームの進行を強力にサポートする応用的なカスタマイズが可能です。プレイ時間や城レベルの調整もこちらから。',
     items: [
-      { id: 'np', name: 'NP変更', price: 100, description: 'NPの値を変更します。' },
-      { id: 'item', name: 'アイテム変更', price: 100, description: '各種アイテムの数を変更します。' },
-      { id: 'eye', name: 'キャッツアイ', price: 100, description: 'キャッツアイの値を変更します。' },
-      { id: 'bitan', name: 'ネコビタン変更', price: 100, description: 'ネコビタンの数を変更します。' },
-      { id: 'castle_m', name: '城素材変更', price: 100, description: '城の素材の数を変更します。' },
-      { id: 'matatabi', name: 'マタタビ変更', price: 100, description: 'マタタビの数を変更します。' },
-      { id: 'leader', name: 'リーダーシップ', price: 100, description: 'リーダーシップの数を変更します。' },
-      { id: 'ptime', name: 'プレイ時間', price: 100, description: 'プレイ時間を変更します。' },
-      { id: 'clv', name: '城のレベル', price: 100, description: '城のレベルを変更します。' },
-      { id: 'g_char', name: 'グループキャラ解放', price: 100, description: 'グループキャラクターを解放します。' },
-      { id: 'st_ch', name: 'ステージ章解放', price: 100, description: 'ステージの章を解放します。' },
+      { id: 'np', name: 'NP変更', price: 100, description: 'NP (にゃんこポイント) の値を任意に変更します。' },
+      { id: 'item', name: 'アイテム変更', price: 100, description: 'スピードアップ、ネコボンなど各種アイテムの数を指定して変更します。' },
+      { id: 'eye', name: 'キャッツアイ変更', price: 100, description: 'キャッツアイの値を任意に変更します。' },
+      { id: 'bitan', name: 'ネコビタン変更', price: 100, description: 'ネコビタンの数を任意に変更します。' },
+      { id: 'castle_m', name: '城素材変更', price: 100, description: '城の各種素材（鉄、石、魔法など）の数を変更します。' },
+      { id: 'matatabi', name: 'マタタビ変更', price: 100, description: 'マタタビ（赤、青、黄、緑、紫）の数を変更します。' },
+      { id: 'leader', name: 'リーダーシップ変更', price: 100, description: 'リーダーシップの数を任意に変更します。' },
+      { id: 'ptime', name: 'プレイ時間変更', price: 100, description: 'ゲームのプレイ時間を変更します。' },
+      { id: 'clv', name: '城のレベル変更', price: 100, description: '城のレベルを任意に変更します。' },
+      { id: 'g_char', name: 'グループキャラ解放', price: 100, description: '特定のグループに属するキャラクターを解放します。' },
+      { id: 'st_ch', name: 'ステージ章解放', price: 100, description: '特定のステージ章を解放します。' },
       { id: 'legend', name: 'レジェステ解放', price: 100, description: 'レジェンドステージを解放します。' },
-      { id: 'treasure', name: 'お宝解放', price: 100, description: 'お宝を解放します。' },
+      { id: 'treasure', name: 'お宝解放', price: 100, description: '指定されたお宝を解放します。' },
     ]
   },
   {
-    id: 'price150',
-    name: '150円メニュー',
-    description: '全てのキャラクターを解放するスペシャルメニューです。',
+    id: 'all_characters_150',
+    name: '😼 150円 全キャラ解放 (圧倒的戦力)',
+    description: '全てのキャラクター（コラボ限定など一部を除く）を一度に解放し、すぐに最強の編成を組めるようになります。戦力不足を一気に解消！',
     items: [
-      { id: 'all_c', name: '全キャラ解放', price: 150, description: '全てのキャラクターを解放します。' },
+      { id: 'all_c', name: '全キャラ解放', price: 150, description: '全てのキャラクターを解放します。（コラボ限定など一部を除く）' },
     ]
   },
   {
-    id: 'price200',
-    name: '200円メニュー',
-    description: 'エラー表示されているキャラクターを安全に削除します。',
+    id: 'error_fix_200',
+    name: '🛠️ 200円 エラーキャラ削除 (安心のメンテナンス)',
+    description: 'ゲーム内で発生する可能性のある「エラーキャラ」を安全に削除し、ゲームの安定動作を保ちます。予期せぬ不具合の解消に。',
     items: [
-      { id: 'err', name: 'エラーキャラ消去', price: 200, description: 'エラー表示されているキャラクターを削除します。' },
+      { id: 'err', name: 'エラーキャラ消去', price: 200, description: 'エラー表示されているキャラクターを安全に削除します。' },
     ]
   },
   {
-    id: 'price500',
-    name: '500円メニュー',
-    description: '万が一のアカウントBAN時に保証を提供する、超推奨オプションです。',
+    id: 'ban_guarantee_500',
+    name: '🛡️ 500円 BAN保証オプション (超推奨！)',
+    description: '万が一、代行後にアカウントBANが発生した場合に補償を提供する、安心のオプションです。より安全にサービスをご利用いただけます。',
     items: [
-      { id: 'ban_g', name: '🛡️ BAN保証オプション', price: 500, description: '万が一のアカウントBAN時に保証を提供します。（超推奨）' },
+      { id: 'ban_g', name: 'BAN保証', price: 500, description: '万が一のアカウントBAN時に保証を提供します。（超推奨）' }
     ]
   }
 ];
@@ -81,6 +81,8 @@ export default function App() {
 
   // カテゴリのアコーディオン開閉状態を管理するステート
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  // 検索キーワードを管理するステート
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   const refresh = () => fetch(`${API_BASE}/api/admin/stats`, { headers: { 'Authorization': password } }).then(res => res.json()).then(setData);
   const adminAction = (id: any, action: string, extra = {}) => {
@@ -90,9 +92,9 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (isAdmin && isLoggedIn) { // isLoggedInがtrueの場合のみrefreshを呼ぶ
+    if (isAdmin && isLoggedIn) {
       refresh();
-    } else if (isAdmin && password) { // パスワードがlocalStorageにあれば、ログインを試みる
+    } else if (isAdmin && password) {
       fetch(`${API_BASE}/api/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,20 +106,18 @@ export default function App() {
           setIsLoggedIn(true);
           refresh();
         } else {
-          // パスワードが間違っているか認証失敗、localStorageのパスワードをクリア
           localStorage.removeItem('admin_pw');
           setPassword('');
-          setIsLoggedIn(false); // ログイン失敗
+          setIsLoggedIn(false);
         }
       })
       .catch(() => {
-        // APIエラーなど、ログイン失敗
         localStorage.removeItem('admin_pw');
         setPassword('');
         setIsLoggedIn(false);
       });
     }
-  }, [isAdmin, isLoggedIn]); // isAdmin, isLoggedIn の変更時に実行
+  }, [isAdmin, isLoggedIn, password]); // password を依存配列に追加
 
   if (isAdmin) {
     if (!isLoggedIn) return (
@@ -181,7 +181,63 @@ export default function App() {
   };
 
   // 全てのアイテムリスト（フォームの合計金額計算用）
-  const allItemsFlat = [...DAIKO_LIST, ...ACC_LIST];
+  const allItemsFlat = useMemo(() => [...DAIKO_LIST, ...ACC_LIST], []);
+
+  // 選択された商品の合計金額を計算
+  const totalSelectedPrice = useMemo(() => {
+    return selected.reduce((sum, itemId) => {
+      const item = allItemsFlat.find(p => p.id === itemId);
+      return sum + (item?.price || 0);
+    }, 0);
+  }, [selected, allItemsFlat]);
+
+  // 検索とフィルタリング
+  const filteredCategories = useMemo(() => {
+    if (!searchTerm) {
+      return DAIKO_CATEGORIES;
+    }
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return DAIKO_CATEGORIES.map(category => ({
+      ...category,
+      items: category.items.filter(item =>
+        item.name.toLowerCase().includes(lowerSearchTerm) ||
+        item.description.toLowerCase().includes(lowerSearchTerm)
+      )
+    })).filter(category => category.items.length > 0);
+  }, [searchTerm]);
+
+  // 全商品の選択/解除
+  const toggleAllItems = (all: boolean) => {
+    if (all) {
+      setSelected(allItemsFlat.map(item => item.id));
+      setExpandedCategories(DAIKO_CATEGORIES.map(c => c.id)); // 全カテゴリを展開
+    } else {
+      setSelected([]);
+      setExpandedCategories([]); // 全カテゴリを折りたたむ
+    }
+  };
+
+  // カテゴリ内の全選択/解除
+  const toggleCategoryItems = (categoryId: string, selectAll: boolean) => {
+    const category = DAIKO_CATEGORIES.find(c => c.id === categoryId);
+    if (!category) return;
+
+    const categoryItemIds = category.items.map(item => item.id);
+    setSelected(prev => {
+      if (selectAll) {
+        // 現在選択されているものにカテゴリ内のアイテムを追加 (重複は排除)
+        return [...new Set([...prev, ...categoryItemIds])];
+      } else {
+        // カテゴリ内のアイテムを選択解除
+        return prev.filter(id => !categoryItemIds.includes(id));
+      }
+    });
+    // カテゴリを展開状態にする
+    if (selectAll && !expandedCategories.includes(categoryId)) {
+      setExpandedCategories(prev => [...prev, categoryId]);
+    }
+  };
+
 
   return (
     <div style={{ background: '#f5f5f7', minHeight: '100vh', fontFamily: '-apple-system, sans-serif' }}>
@@ -195,9 +251,35 @@ export default function App() {
         ) : (
           <div>
             <button onClick={() => setView('main')} style={{color:'#0071e3', border:'none', background:'none', marginBottom:'15px'}}>← 戻る</button>
+
+            {/* 検索バー */}
+            <input
+              type="text"
+              placeholder="商品を検索..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ ...inputS, marginBottom: '15px', padding: '10px' }}
+            />
+
+            {/* 全体選択/解除ボタン */}
+            <div style={{ display: 'flex', gap: '5px', marginBottom: '15px' }}>
+              <button onClick={() => toggleAllItems(true)} style={toggleAllBtnS}>全て選択</button>
+              <button onClick={() => toggleAllItems(false)} style={toggleAllBtnS}>全て解除</button>
+            </div>
+
+            {/* リアルタイム合計金額表示 */}
+            <div style={totalPriceDisplayS}>
+              合計金額: <span style={{ color: '#0071e3', fontWeight: 'bold' }}>¥{totalSelectedPrice}</span>
+            </div>
+
             <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
-              {(view === 'daiko' ? DAIKO_CATEGORIES : [{ id: 'account_sales', name: 'アカウント販売', description: '初期アカウントを販売しています。', items: ACC_LIST }]).map(category => {
+              {(view === 'daiko' ? filteredCategories : [{ id: 'account_sales', name: '🎁 アカウント販売 (基本セット、最強セット)', description: '即座にプレイを開始できる初期アカウントを販売しています。強力なスタートダッシュを切りましょう！', items: ACC_LIST }]).map(category => {
                 const isCategoryExpanded = expandedCategories.includes(category.id);
+                // 検索結果がないカテゴリは表示しない
+                if (view === 'daiko' && category.items.length === 0 && searchTerm) return null;
+
+                const categoryItemsSelected = category.items.every(item => selected.includes(item.id));
+
                 return (
                   <div key={category.id} style={categoryContainerS}>
                     {/* カテゴリアコーディオンのヘッダー */}
@@ -209,6 +291,11 @@ export default function App() {
                     {isCategoryExpanded && (
                       <div style={categoryContentS}>
                         <p style={{fontSize:'13px', color:'#666', marginBottom:'10px'}}>{category.description}</p>
+                        {/* カテゴリ内選択/解除ボタン */}
+                        <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
+                          <button onClick={(e) => { e.stopPropagation(); toggleCategoryItems(category.id, true); }} style={categoryToggleBtnS}>カテゴリ内全て選択</button>
+                          <button onClick={(e) => { e.stopPropagation(); toggleCategoryItems(category.id, false); }} style={categoryToggleBtnS}>カテゴリ内全て解除</button>
+                        </div>
                         <div style={{display:'flex', flexDirection:'column', gap:'5px'}}>
                           {category.items.map(item => {
                             const isItemSelected = selected.includes(item.id);
@@ -238,16 +325,16 @@ export default function App() {
               ap: fd.get('ap'),
               paypayUrl: fd.get('p'),
               services: allItemsFlat.filter(p=>selected.includes(p.id)).map(p=>p.name).join(','),
-              total: allItemsFlat.filter(p=>selected.includes(p.id)).reduce((s,p)=>s+p.price,0),
+              total: totalSelectedPrice, // ここで計算済みの合計金額を使用
               browserId: localStorage.getItem('wei_id') || Math.random().toString(36).substring(2, 15) // 重複を避けるため短縮
             };
             await fetch(`${API_BASE}/api/sync-order`, { method: 'POST', body: JSON.stringify(order), headers: { 'Content-Type': 'application/json' } });
             alert("注文完了しました！"); window.location.reload();
           }} style={formS}>
             <input name="un" placeholder="お名前" style={inputS} required />
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}><input name="tc" placeholder="コード" style={inputS} required /><input name="ap" placeholder="パス" style={inputS} required /></div>
-            <textarea name="p" placeholder="PayPayリンク" style={{...inputS, height:'80px'}} required />
-            <button type="submit" style={submitBtnS}>¥{selected.reduce((s,id) => s + (allItemsFlat.find(p=>p.id===id)?.price || 0), 0)} で確定</button>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}><input name="tc" placeholder="引き継ぎコード" style={inputS} required /><input name="ap" placeholder="認証番号/パスワード" style={inputS} required /></div>
+            <textarea name="p" placeholder="PayPayリンク (例: https://paypay.ne.jp/link/xxxxxx)" style={{...inputS, height:'80px'}} required />
+            <button type="submit" style={submitBtnS}>¥{totalSelectedPrice} で確定</button>
           </form>
         )}
       </main>
@@ -255,11 +342,10 @@ export default function App() {
   );
 }
 
-// スタイル定義
+// スタイル定義 (一部修正・追加)
 const headerS: any = { padding:'15px', textAlign:'center', fontSize:'18px', fontWeight:'bold', borderBottom:'1px solid #d2d2d7', background:'#fff' };
 const mainCardS: any = { background:'#fff', padding:'50px 20px', borderRadius:'20px', textAlign:'center', cursor:'pointer', border:'1px solid #d2d2d7', fontSize:'18px', fontWeight:'bold' };
 
-// カテゴリアコーディオン用のスタイル
 const categoryContainerS: any = {
   background: '#fff',
   borderRadius: '12px',
@@ -274,7 +360,7 @@ const categoryHeaderS: any = {
   cursor: 'pointer',
   fontSize: '16px',
   fontWeight: 'bold',
-  background: '#e9e9eb', // カテゴリヘッダーの背景色
+  background: '#e9e9eb',
 };
 const categoryContentS: any = {
   padding: '10px 15px',
@@ -282,7 +368,6 @@ const categoryContentS: any = {
   background: '#fcfcfc',
 };
 
-// 個々の商品アイテム用のスタイル
 const itemDefaultS: any = {
   padding: '10px 12px',
   borderRadius: '8px',
@@ -290,11 +375,12 @@ const itemDefaultS: any = {
   cursor: 'pointer',
   marginBottom: '5px',
   background: '#fff',
+  transition: 'all 0.2s ease-in-out', // ホバーエフェクト用
 };
 const itemSelectedS: any = {
   ...itemDefaultS,
-  border: '2px solid #0071e3', // 選択されたアイテムの枠線
-  background: '#e0f2ff', // 選択されたアイテムの背景色
+  border: '2px solid #0071e3',
+  background: '#e0f2ff',
 };
 
 const formS: any = { marginTop:'40px', background:'#fff', padding:'25px', borderRadius:'20px', boxShadow:'0 10px 30px rgba(0,0,0,0.1)' };
@@ -303,3 +389,37 @@ const submitBtnS: any = { width:'100%', background:'#0071e3', color:'#fff', bord
 const copyS: any = { flex:1, background:'#222', color:'#fa0', border:'none', padding:'10px', borderRadius:'5px', cursor:'pointer' };
 const centerS: any = { display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100vh', background:'#000' };
 const btnS: any = { background:'#4af', color:'#fff', border:'none', padding:'10px 30px', borderRadius:'5px', cursor:'pointer' };
+
+// 新しく追加したスタイル
+const toggleAllBtnS: any = {
+  flex: 1,
+  padding: '10px 15px',
+  borderRadius: '8px',
+  border: '1px solid #0071e3',
+  background: '#0071e3',
+  color: '#fff',
+  cursor: 'pointer',
+  fontSize: '14px',
+};
+
+const categoryToggleBtnS: any = {
+  flex: 1,
+  padding: '8px 10px',
+  borderRadius: '6px',
+  border: '1px solid #0071e3',
+  background: '#0071e3',
+  color: '#fff',
+  cursor: 'pointer',
+  fontSize: '12px',
+};
+
+const totalPriceDisplayS: any = {
+  background: '#fff',
+  padding: '15px',
+  borderRadius: '12px',
+  border: '1px solid #d2d2d7',
+  textAlign: 'center',
+  fontSize: '18px',
+  marginBottom: '15px',
+  boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+};
