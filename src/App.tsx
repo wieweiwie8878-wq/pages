@@ -69,6 +69,18 @@ const ACC_ITEMS = [
 const DAIKO_LIST = DAIKO_CATEGORIES.flatMap(category => category.items);
 const ACC_LIST = ACC_ITEMS;
 
+// カスタムモーダルコンポーネントを定義
+const CustomModal = ({ message, onClose }: { message: string; onClose: () => void }) => {
+    return (
+        <div style={modalOverlayS}>
+            <div style={modalContentS}>
+                <p style={{fontSize: '16px', fontWeight: 'bold', marginBottom: '15px'}}>{message}</p>
+                <button onClick={onClose} style={modalButtonS}>閉じる</button>
+            </div>
+        </div>
+    );
+};
+
 export default function App() {
   const [view, setView] = useState<'main' | 'daiko' | 'account'>('main');
   const [selected, setSelected] = useState<string[]>([]);
@@ -81,6 +93,11 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [paypayLinkValue, setPaypayLinkValue] = useState<string>('');
   const [paypayLinkError, setPaypayLinkError] = useState<string | null>(null);
+
+  // カスタムモーダル表示用のstate
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customModalMessage, setCustomModalMessage] = useState('');
+
 
   const refresh = () => fetch(`${API_BASE}/api/admin/stats`, { headers: { 'Authorization': password } }).then(res => res.json()).then(setData);
   const adminAction = (id: any, action: string, extra = {}) => {
@@ -134,10 +151,14 @@ export default function App() {
             localStorage.setItem('admin_pw', password);
             refresh();
           } else {
-            alert('ログイン失敗: パスワードが違います。');
+            setCustomModalMessage('ログイン失敗: パスワードが違います。'); // カスタムモーダルでエラー表示
+            setShowCustomModal(true);
             setIsLoggedIn(false);
           }
         }} style={btnS}>LOGIN</button>
+        {showCustomModal && (
+          <CustomModal message={customModalMessage} onClose={() => setShowCustomModal(false)} />
+        )}
       </div>
     );
     return (
@@ -229,8 +250,7 @@ export default function App() {
   const handlePaypayLinkChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setPaypayLinkValue(value);
-    // paypay.ne.jp が含まれていればOKとする正規表現
-    const paypayRegex = /paypay\.ne\.jp/i; // i は大文字小文字を区別しない
+    const paypayRegex = /paypay\.ne\.jp/i;
     if (value === '' || paypayRegex.test(value)) {
       setPaypayLinkError(null);
     } else {
@@ -242,7 +262,8 @@ export default function App() {
     e.preventDefault();
 
     if (paypayLinkError) {
-      alert(paypayLinkError);
+      setCustomModalMessage(paypayLinkError); // カスタムモーダルでエラー表示
+      setShowCustomModal(true);
       return;
     }
 
@@ -256,8 +277,32 @@ export default function App() {
       total: totalSelectedPrice,
       browserId: localStorage.getItem('wei_id') || Math.random().toString(36).substring(2, 15)
     };
-    await fetch(`${API_BASE}/api/sync-order`, { method: 'POST', body: JSON.stringify(order), headers: { 'Content-Type': 'application/json' } });
-    alert("注文完了しました！"); window.location.reload();
+
+    try {
+      await fetch(`${API_BASE}/api/sync-order`, {
+        method: 'POST',
+        body: JSON.stringify(order),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      setCustomModalMessage("注文完了しました！"); // カスタムモーダルで成功表示
+      setShowCustomModal(true);
+      // モーダルを閉じるまで待ってからリロードしたい場合
+      // setTimeout(() => { window.location.reload(); }, 2000); // 2秒後にリロード
+      // モーダルが閉じられた時にリロードするハンドラを渡す
+      const handleCloseAndReload = () => {
+        setShowCustomModal(false);
+        window.location.reload();
+      };
+      // onCloseハンドラをモーダルに渡す
+      return (
+        <CustomModal message={customModalMessage} onClose={handleCloseAndReload} />
+      );
+
+    } catch (error) {
+      console.error("注文送信中にエラーが発生しました:", error);
+      setCustomModalMessage("注文送信中にエラーが発生しました。時間をおいて再度お試しください。");
+      setShowCustomModal(true);
+    }
   };
 
 
@@ -348,6 +393,9 @@ export default function App() {
           </form>
         )}
       </main>
+      {showCustomModal && (
+        <CustomModal message={customModalMessage} onClose={() => { setShowCustomModal(false); if (customModalMessage === "注文完了しました！") window.location.reload(); }} />
+      )}
     </div>
   );
 }
@@ -430,4 +478,38 @@ const totalPriceDisplayS: any = {
   fontSize: '18px',
   marginBottom: '15px',
   boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+};
+
+// カスタムモーダル用のスタイル
+const modalOverlayS: any = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+};
+
+const modalContentS: any = {
+    backgroundColor: '#fff',
+    padding: '30px',
+    borderRadius: '15px',
+    boxShadow: '0 5px 15px rgba(0, 0, 0, 0.3)',
+    maxWidth: '350px',
+    textAlign: 'center',
+};
+
+const modalButtonS: any = {
+    backgroundColor: '#0071e3',
+    color: '#fff',
+    border: 'none',
+    padding: '10px 20px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '15px',
+    marginTop: '15px',
 };
