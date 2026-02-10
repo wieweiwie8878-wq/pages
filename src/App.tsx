@@ -75,7 +75,6 @@ const ACC_ITEMS = [
 const DAIKO_LIST = DAIKO_CATEGORIES.flatMap(category => category.items);
 const ACC_LIST = ACC_ITEMS;
 
-// スタイル定義
 const getStyles = (isDark: boolean) => ({
   container: {
     fontFamily: '"Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif',
@@ -307,6 +306,10 @@ export default function App() {
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [orderHistory, setOrderHistory] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<string[]>(JSON.parse(localStorage.getItem('favorites') || '[]'));
+  
+  // 商品管理
+  const [disabledItems, setDisabledItems] = useState<string[]>([]);
+  const [adminView, setAdminView] = useState<'orders' | 'config'>('orders');
 
   const [formOpen, setFormOpen] = useState(false);
   const [paypayLinkValue, setPaypayLinkValue] = useState('');
@@ -322,6 +325,9 @@ export default function App() {
   const styles = getStyles(isDark);
   const [showModal, setShowModal] = useState(false);
   const [modalMsg, setModalMsg] = useState('');
+  
+  const [reviewContent, setReviewContent] = useState('');
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   const toggleTheme = () => {
     const newTheme = !isDark;
@@ -362,6 +368,48 @@ export default function App() {
       }
   };
 
+  // 設定読み込み
+  useEffect(() => {
+      fetch(`${API_BASE}/api/config`).then(r=>r.json()).then(d => {
+          if(d.disabledItems) setDisabledItems(d.disabledItems);
+      }).catch(console.error);
+  }, []);
+
+  const postReview = async () => {
+    if (!activeOrder || !reviewContent) return;
+    try {
+        await fetch(`${API_BASE}/api/post-review`, {
+            method: 'POST',
+            body: JSON.stringify({ 
+                orderId: activeOrder.id, 
+                content: reviewContent,
+                discordId: discordUser.id,
+                username: discordUser.username
+            }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        setModalMsg("✅ 実績を送信しました！ご協力ありがとうございます。");
+        setShowModal(true);
+        setShowReviewModal(false);
+    } catch (e) {
+        setModalMsg("❌ 送信に失敗しました。");
+        setShowModal(true);
+    }
+  };
+  
+  const toggleProductConfig = async (id: string) => {
+    const newDisabled = disabledItems.includes(id) 
+        ? disabledItems.filter(i => i !== id) 
+        : [...disabledItems, id];
+    setDisabledItems(newDisabled);
+    
+    await fetch(`${API_BASE}/api/admin/config`, {
+        method: 'POST',
+        body: JSON.stringify({ disabledItems: newDisabled }),
+        headers: { 'Content-Type': 'application/json', 'Authorization': password }
+    });
+  };
+
   const CustomModal = ({ message, onClose }: { message: string; onClose: () => void }) => (
     <div style={styles.modalOverlay}>
       <div style={styles.modalContent}>
@@ -376,6 +424,22 @@ export default function App() {
             <button onClick={onClose} style={{...styles.checkoutBtn, width: '100%', marginTop: '20px'}}>閉じる</button>
         )}
       </div>
+    </div>
+  );
+  
+  const ReviewModal = () => (
+    <div style={styles.modalOverlay}>
+        <div style={styles.modalContent}>
+            <h3 style={{color: '#333'}}>実績を投稿</h3>
+            <textarea 
+                value={reviewContent}
+                onChange={e => setReviewContent(e.target.value)}
+                placeholder="サービス内容や感想をご記入ください..."
+                style={{width:'100%', height:'100px', padding:'10px', borderRadius:'10px', border:'1px solid #ddd', marginBottom:'15px', boxSizing:'border-box', fontFamily:'sans-serif'}}
+            />
+            <button onClick={postReview} style={{...styles.checkoutBtn, width:'100%'}}>送信する</button>
+            <button onClick={() => setShowReviewModal(false)} style={{width:'100%', background:'none', border:'none', color:'#777', marginTop:'10px', cursor:'pointer'}}>キャンセル</button>
+        </div>
     </div>
   );
 
@@ -460,6 +524,11 @@ export default function App() {
                             <div style={{fontSize:'12px', color:'#888', marginTop:'5px'}}>完了スクリーンショット</div>
                         </div>
                     )}
+                    
+                    <button onClick={() => setShowReviewModal(true)} style={{...styles.checkoutBtn, background:'#fbc02d', color:'#000', marginBottom:'10px', width:'100%'}}>
+                        ✍️ 実績を投稿する
+                    </button>
+
                     <button onClick={() => setActiveOrder(null)} style={{...styles.checkoutBtn, background:'#333', padding:'15px 40px'}}>新しい注文をする</button>
                 </div>
             )}
@@ -581,9 +650,9 @@ export default function App() {
   const filteredCategories = useMemo(() => {
     if (!searchTerm) return DAIKO_CATEGORIES;
     return DAIKO_CATEGORIES.map(c => ({
-      ...c, items: c.items.filter(i => i.name.includes(searchTerm) || i.description.includes(searchTerm))
+      ...c, items: c.items.filter(i => !disabledItems.includes(i.id) && (i.name.includes(searchTerm) || i.description.includes(searchTerm)))
     })).filter(c => c.items.length > 0);
-  }, [searchTerm]);
+  }, [searchTerm, disabledItems]); // disabledItemsを依存配列に追加
 
   const handlePaypay = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -642,6 +711,8 @@ export default function App() {
       setShowModal(true);
     }
   };
+
+  // --- View Components ---
 
   const UserMenu = () => (
     <div style={styles.userMenu}>
@@ -704,6 +775,8 @@ export default function App() {
     </div>
   );
 
+  // --- Render ---
+
   if (isAdmin) {
     if (!isLoggedIn) return (
       <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', height:'100vh', background:'#121212', color:'#fff'}}>
@@ -715,9 +788,15 @@ export default function App() {
     return (
       <div style={styles.adminContainer}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
-          <h2 style={{margin:0}}>魏 司令官：管理画面</h2>
-          <button onClick={()=>{setIsLoggedIn(false); localStorage.removeItem('admin_pw'); setPassword(''); setData(null);}} style={{background:'#cf6679', color:'#fff', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer'}}>Logout</button>
+          <h2 style={{margin:0}}>管理画面</h2>
+          <div style={{display:'flex', gap:'10px'}}>
+             <button onClick={()=>setAdminView('orders')} style={{background: adminView==='orders'?'#0071e3':'#333', color:'#fff', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer'}}>注文一覧</button>
+             <button onClick={()=>setAdminView('config')} style={{background: adminView==='config'?'#0071e3':'#333', color:'#fff', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer'}}>商品管理</button>
+             <button onClick={()=>{setIsLoggedIn(false); localStorage.removeItem('admin_pw'); setPassword(''); setData(null);}} style={{background:'#cf6679', color:'#fff', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer'}}>Logout</button>
+          </div>
         </div>
+
+        {adminView === 'orders' ? (
         <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))', gap:'15px'}}>
           {data?.orders?.map((o: any) => (
             <div key={o.id} style={styles.adminCard}>
@@ -758,6 +837,39 @@ export default function App() {
             </div>
           ))}
         </div>
+        ) : (
+             <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:'15px'}}>
+                 <div style={styles.adminCard}>
+                     <h3>一括設定</h3>
+                     <button onClick={() => {
+                         const accIds = ACC_ITEMS.map(i => i.id);
+                         const isAllDisabled = accIds.every(id => disabledItems.includes(id));
+                         const newDisabled = isAllDisabled 
+                            ? disabledItems.filter(id => !accIds.includes(id))
+                            : [...new Set([...disabledItems, ...accIds])];
+                         setDisabledItems(newDisabled);
+                         fetch(`${API_BASE}/api/admin/config`, { method: 'POST', body: JSON.stringify({ disabledItems: newDisabled }), headers: { 'Content-Type': 'application/json', 'Authorization': password } });
+                     }} style={{...styles.checkoutBtn, background: '#e74c3c'}}>アカウント販売を停止/再開</button>
+                 </div>
+
+                 {[...DAIKO_LIST, ...ACC_LIST].map(item => (
+                     <div key={item.id} style={{...styles.adminCard, opacity: disabledItems.includes(item.id) ? 0.5 : 1}}>
+                         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                             <span style={{color:'#fff'}}>{item.name}</span>
+                             <button 
+                                onClick={()=>toggleProductConfig(item.id)} 
+                                style={{
+                                    background: disabledItems.includes(item.id) ? '#333' : '#4caf50', 
+                                    color:'#fff', border:'none', padding:'5px 10px', borderRadius:'5px', cursor:'pointer'
+                                }}
+                             >
+                                 {disabledItems.includes(item.id) ? '無効' : '有効'}
+                             </button>
+                         </div>
+                     </div>
+                 ))}
+             </div>
+        )}
       </div>
     );
   }
@@ -912,6 +1024,7 @@ export default function App() {
       )}
 
       {showModal && <CustomModal message={modalMsg} onClose={() => { setShowModal(false); if(modalMsg.includes('注文を受け付け')) window.location.reload(); }} />}
+      {showReviewModal && <ReviewModal />}
     </div>
   );
 }
