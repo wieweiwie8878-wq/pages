@@ -295,7 +295,6 @@ const getStyles = (isDark: boolean) => ({
     boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
   },
 });
-
 export default function App() {
   const [view, setView] = useState<'main' | 'daiko' | 'account' | 'settings'>('main');
   const [selected, setSelected] = useState<string[]>([]);
@@ -538,6 +537,7 @@ export default function App() {
     );
   };
 
+  // --- Main Logic & Handlers ---
   const checkLogin = () => {
     if (!discordUser) {
       setModalMsg("⚠️ 商品を選択するにはDiscordログインが必要です。\n\nログインして続行しますか？");
