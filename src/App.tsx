@@ -5,7 +5,7 @@ const API_BASE = "https://worker.nasserl.workers.dev"; // WorkersのURL
 // Discord設定
 const DISCORD_CLIENT_ID = "1456569335190388951"; 
 const REDIRECT_URI = "https://kenji123.f5.si/"; 
-const SUPPORT_SERVER_URL = "https://discord.gg/YOUR_INVITE_CODE"; 
+const SUPPORT_SERVER_URL = "https://discord.gg/YOUR_INVITE_CODE"; // ★ここに実際の招待コードを入れてください
 
 // 商品データの定義
 const DAIKO_CATEGORIES = [
@@ -14,8 +14,8 @@ const DAIKO_CATEGORIES = [
     name: '💰 80円 基本強化パック',
     description: 'ゲーム進行の基礎となる必須アイテムをお得に強化。',
     items: [
-      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約99999）まで増加。' },
-      { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値（約99999999）まで増加。' },
+      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約99999）まで増加。ガチャ引き放題！' },
+      { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値（約99999999）まで増加。キャラ強化に必須！' },
       { id: 't_norm', name: '通常チケ(100枚)', price: 80, description: '通常チケットを上限の100枚まで付与。' },
       { id: 't_rare', name: 'レアチケ(100枚)', price: 80, description: 'レアチケットを上限の100枚まで付与。' },
       { id: 'st_one', name: '1ステージ開放', price: 80, description: '攻略が難しいステージを1つ指定して開放。' },
@@ -370,6 +370,93 @@ export default function App() {
     </div>
   );
 
+  const StatusDashboard = ({ order }: { order: any }) => {
+    const isCompleted = order.status === 'completed';
+    const isScrubbed = order.status === 'scrubbed';
+    const orderToken = `${order.id}-${order.discordUserId?.substring(0, 5) || 'xxxx'}`;
+
+    return (
+        <div style={{...styles.main, maxWidth:'600px', marginTop:'40px'}}>
+            <div style={{textAlign:'center', marginBottom:'30px'}}>
+                <div style={{fontSize:'60px', marginBottom:'10px'}}>
+                    {isCompleted ? '🎉' : isScrubbed ? '🗑️' : '⏳'}
+                </div>
+                <h2 style={{fontSize:'24px', margin:0, color: isDark?'#fff':'#333'}}>
+                    {isCompleted ? '作業が完了しました！' : isScrubbed ? 'データ抹消済み' : '注文を受け付けました'}
+                </h2>
+                <p style={{color:'#888', marginTop:'5px'}}>
+                    {isCompleted ? 'ご利用ありがとうございました。' : '担当者が作業を開始します。しばらくお待ちください。'}
+                </p>
+            </div>
+
+            <div style={{...styles.card, border: `2px solid ${isCompleted ? '#4caf50' : '#0071e3'}`, background: isDark?'#222':'#fff'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom: isDark?'1px solid #444':'1px solid #eee', paddingBottom:'15px', marginBottom:'15px'}}>
+                    <span style={{fontSize:'14px', color:'#888'}}>注文番号</span>
+                    <span style={{fontSize:'18px', fontWeight:'bold', color: isDark?'#fff':'#333'}}>#{order.id}</span>
+                </div>
+                
+                <div style={{marginBottom:'20px'}}>
+                    <div style={{fontSize:'14px', color:'#888', marginBottom:'5px'}}>注文内容</div>
+                    <div style={{fontSize:'16px', fontWeight:'bold', color: isDark?'#fff':'#333', lineHeight:'1.5'}}>
+                        {order.services.split(',').map((s: string, i: number) => (
+                            <div key={i}>・{s}</div>
+                        ))}
+                    </div>
+                </div>
+
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', paddingTop:'15px', borderTop: isDark?'1px solid #444':'1px solid #eee'}}>
+                    <span style={{fontSize:'14px', color:'#888'}}>合計金額</span>
+                    <span style={{fontSize:'24px', fontWeight:'bold', color:'#0071e3'}}>¥{order.totalPrice}</span>
+                </div>
+            </div>
+
+            <div style={{background: isDark?'#333':'#f0f0f0', padding:'15px', borderRadius:'10px', display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
+                <div>
+                    <div style={{fontSize:'11px', color:'#888', fontWeight:'bold'}}>YOUR ORDER TOKEN</div>
+                    <div style={{fontSize:'14px', fontFamily:'monospace', color: isDark?'#fff':'#333'}}>{orderToken}</div>
+                </div>
+                <button onClick={() => { navigator.clipboard.writeText(orderToken); setModalMsg("📋 コピーしました"); setShowModal(true); }} style={{background:'none', border:'none', color:'#0071e3', fontWeight:'bold', cursor:'pointer'}}>コピー</button>
+            </div>
+
+            {!isCompleted && !isScrubbed && (
+                <div style={{marginBottom:'30px'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', fontSize:'12px', color:'#888', marginBottom:'5px'}}>
+                        <span>受付済み</span>
+                        <span>作業中</span>
+                        <span>完了</span>
+                    </div>
+                    <div style={{height:'6px', background:'#eee', borderRadius:'3px', position:'relative', overflow:'hidden'}}>
+                        <div style={{position:'absolute', left:0, top:0, bottom:0, width:'33%', background:'#0071e3', borderRadius:'3px'}}></div>
+                        <div style={{position:'absolute', left:0, top:0, bottom:0, width:'30%', background:'rgba(255,255,255,0.5)', animation:'loading 1.5s infinite'}}></div>
+                    </div>
+                    <style>{`@keyframes loading { 0% { left: 0; } 100% { left: 100%; } }`}</style>
+                    <div style={{marginTop:'20px', textAlign:'center'}}>
+                        <p style={{fontSize:'13px', color:'#888'}}>
+                            完了通知を受け取るには、サポートサーバーへの参加が必要です。<br/>
+                            (未参加の場合、BotからのDMが届きません)
+                        </p>
+                        <a href={SUPPORT_SERVER_URL} target="_blank" rel="noreferrer" style={{...styles.checkoutBtn, display:'inline-block', textDecoration:'none', fontSize:'14px', background:'#5865F2', marginTop:'10px', width:'100%', boxSizing:'border-box'}}>
+                            👾 サポートサーバーに参加する
+                        </a>
+                    </div>
+                </div>
+            )}
+
+            {isCompleted && (
+                <div style={{textAlign:'center'}}>
+                    {order.proofImageUrl && (
+                        <div style={{marginBottom:'20px'}}>
+                            <img src={order.proofImageUrl} alt="完了証拠" style={{maxWidth:'100%', borderRadius:'10px', boxShadow:'0 5px 15px rgba(0,0,0,0.2)'}} />
+                            <div style={{fontSize:'12px', color:'#888', marginTop:'5px'}}>完了スクリーンショット</div>
+                        </div>
+                    )}
+                    <button onClick={() => setActiveOrder(null)} style={{...styles.checkoutBtn, background:'#333', padding:'15px 40px'}}>新しい注文をする</button>
+                </div>
+            )}
+        </div>
+    );
+  };
+
   const checkLogin = () => {
     if (!discordUser) {
       setModalMsg("⚠️ 商品を選択するにはDiscordログインが必要です。\n\nログインして続行しますか？");
@@ -519,8 +606,7 @@ export default function App() {
       const resData = await res.json();
       
       if (resData.success) {
-          setModalMsg("✅ 注文を受け付けました！\n完了時にBotからDMが届きます。");
-          setShowModal(true);
+          // モーダルは出さず、フォームを閉じて画面をステータスダッシュボードへ切り替え
           setFormOpen(false);
           setSelected([]);
           
@@ -529,10 +615,12 @@ export default function App() {
               status: 'pending',
               services: order.services,
               totalPrice: order.total,
-              proofImageUrl: null
+              proofImageUrl: null,
+              discordUserId: discordUser.id
           };
           setActiveOrder(newOrder);
-          
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+
       } else {
           setModalMsg("❌ サーバーエラー: " + resData.error);
           setShowModal(true);
@@ -589,58 +677,7 @@ export default function App() {
     </div>
   );
 
-  const StatusDashboard = ({ order }: { order: any }) => (
-    <div style={{...styles.card, border: '2px solid #0071e3', background: isDark?'#222':'#f0f7ff', textAlign:'center'}}>
-        <h3 style={{color:'#0071e3', marginTop:0, fontSize:'20px'}}>
-            {order.status === 'completed' ? '✅ 作業完了' : '⏳ 作業中 / 待機中'}
-        </h3>
-        
-        <div style={{marginBottom:'20px', padding:'15px', background: isDark?'#333':'#fff', borderRadius:'10px', display:'inline-block', minWidth:'250px'}}>
-            <div style={{fontSize:'12px', color:'#777', marginBottom:'5px'}}>注文番号: #{order.id}</div>
-            <div style={{fontSize:'16px', fontWeight:'bold', color: isDark?'#fff':'#333'}}>{order.services}</div>
-            <div style={{fontSize:'14px', color:'#0071e3', marginTop:'5px'}}>¥{order.totalPrice}</div>
-        </div>
-
-        {order.status !== 'completed' && (
-            <div style={{marginBottom:'20px'}}>
-                <p style={{fontSize:'14px', lineHeight:'1.6', fontWeight:'bold', color: isDark?'#ccc':'#333'}}>
-                    現在作業中です。完了までしばらくお待ちください。<br/>
-                    (通常、数分〜数時間で完了します)
-                </p>
-                <div style={{background: isDark?'#333':'#fff', padding:'15px', borderRadius:'10px', fontSize:'13px', color: isDark?'#ccc':'#555', textAlign:'left', border: isDark?'1px solid #444':'1px solid #ddd'}}>
-                    <strong>⚠️ 重要なお知らせ</strong><br/>
-                    完了通知はDiscordのDMで送信されます。<br/>
-                    もし通知が届かない場合や、24時間経過しても完了しない場合は、以下のサポートサーバーでチケットを作成し、注文番号 <strong>#{order.id}</strong> を添えてご連絡ください。
-                </div>
-                <a href={SUPPORT_SERVER_URL} target="_blank" rel="noreferrer" style={{...styles.checkoutBtn, display:'inline-block', textDecoration:'none', fontSize:'14px', background:'#5865F2', marginTop:'15px', width:'100%', boxSizing:'border-box'}}>
-                    👾 サポートサーバーに参加する
-                </a>
-            </div>
-        )}
-
-        {order.status === 'completed' && (
-            <div>
-                <p style={{fontWeight:'bold', fontSize:'16px', color: isDark?'#fff':'#333'}}>作業が完了しました！</p>
-                <p style={{fontSize:'14px', color: isDark?'#ccc':'#555'}}>ゲームにログインして内容をご確認ください。</p>
-                
-                {order.proofImageUrl ? (
-                    <div style={{margin:'20px 0'}}>
-                        <img src={order.proofImageUrl} alt="完了証拠" style={{maxWidth:'100%', borderRadius:'10px', boxShadow:'0 5px 15px rgba(0,0,0,0.1)', border:'1px solid #ddd'}} />
-                        <div style={{fontSize:'12px', color:'#777', marginTop:'5px'}}>完了スクリーンショット</div>
-                    </div>
-                ) : (
-                    <div style={{margin:'20px 0', padding:'15px', background: isDark?'#333':'#eee', borderRadius:'10px', fontSize:'12px', color: isDark?'#ccc':'#555'}}>
-                        (完了画像が表示されない場合は、Discordをご確認ください)
-                    </div>
-                )}
-                
-                <button onClick={() => setActiveOrder(null)} style={{...styles.checkoutBtn, background:'#333', fontSize:'14px', marginTop:'10px'}}>
-                    新しい注文をする
-                </button>
-            </div>
-        )}
-    </div>
-  );
+  // --- Render ---
 
   if (isAdmin) {
     if (!isLoggedIn) return (
