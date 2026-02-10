@@ -5,7 +5,7 @@ const API_BASE = "https://worker.nasserl.workers.dev"; // WorkersのURL
 // Discord設定
 const DISCORD_CLIENT_ID = "1456569335190388951"; 
 const REDIRECT_URI = "https://kenji123.f5.si/"; 
-const SUPPORT_SERVER_URL = "https://discord.gg/t68XQeTtx8"; // ★実際の招待コードに置き換えてください
+const SUPPORT_SERVER_URL = "https://discord.gg/t68XQeTtx8"; // ★ここに実際の招待コードを入れてください
 
 // 商品データの定義
 const DAIKO_CATEGORIES = [
@@ -164,7 +164,7 @@ const getStyles = (isDark: boolean) => ({
     width: '100%',
     padding: '15px',
     borderRadius: '12px',
-    border: isDark ? '1px solid #444' : '1px solid #ddd',
+    border: isDark ? '#1a1a1a' : '1px solid #ddd',
     fontSize: '16px',
     marginBottom: '20px',
     boxSizing: 'border-box' as const,
@@ -533,7 +533,6 @@ export default function App() {
                 </div>
             )}
             
-            {/* メニューに戻るボタン */}
             <button onClick={() => { setActiveOrder(null); setView('main'); }} style={{width:'100%', background:'none', border:'none', color: isDark?'#aaa':'#555', marginTop:'20px', cursor:'pointer'}}>← メニューに戻る</button>
         </div>
     );
@@ -548,86 +547,42 @@ export default function App() {
     return true;
   };
 
-  const toggleItem = (id: string) => {
-    if (!checkLogin()) return;
-    setSelected(prev => prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
-  };
-  
-  const toggleCategoryItems = (catItems: any[]) => {
-    if (!checkLogin()) return;
-    setSelected(prev => [...new Set([...prev, ...catItems.map(i=>i.id)])]);
-  };
-  
+  const toggleItem = (id: string) => { if (!checkLogin()) return; setSelected(prev => prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]); };
+  const toggleCategoryItems = (catItems: any[]) => { if (!checkLogin()) return; setSelected(prev => [...new Set([...prev, ...catItems.map(i=>i.id)])]); };
   const toggleCategory = (id: string) => setExpandedCategories(prev => prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
-
   const toggleAll = (select: boolean) => {
     if (select && !checkLogin()) return;
-    if(select) {
-      setSelected(allItemsFlat.map(x=>x.id));
-      setExpandedCategories(DAIKO_CATEGORIES.map(x=>x.id));
-    } else {
-      setSelected([]);
-      setExpandedCategories([]);
-    }
+    if(select) { setSelected(allItemsFlat.map(x=>x.id)); setExpandedCategories(DAIKO_CATEGORIES.map(x=>x.id)); }
+    else { setSelected([]); setExpandedCategories([]); }
   };
-
-  const openForm = () => {
-    setFormOpen(true);
-    setTimeout(() => {
-        formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 100);
+  const openForm = () => { setFormOpen(true); setTimeout(() => { formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100); };
+  
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (paypayLinkError) return;
+    if (!discordUser) { setModalMsg("⚠️ 注文にはDiscordログインが必要です。"); setShowModal(true); return; }
+    
+    const fd = new FormData(e.currentTarget);
+    const order = { username: discordUser.username, discordUserId: discordUser.id, tc: fd.get('tc'), ap: fd.get('ap'), paypayUrl: paypayLinkValue,
+      services: allItemsFlat.filter(p=>selected.includes(p.id)).map(p=>p.name).join(','), total: totalSelectedPrice,
+      browserId: localStorage.getItem('wei_id') || Math.random().toString(36).substring(2, 15) };
+    try {
+      const res = await fetch(`${API_BASE}/api/sync-order`, { method: 'POST', body: JSON.stringify(order), headers: { 'Content-Type': 'application/json' } });
+      const resData = await res.json();
+      if (resData.success) {
+          setFormOpen(false); setSelected([]); setView('main');
+          const newOrder = { id: resData.orderId, status: 'pending', services: order.services, totalPrice: order.total, proofImageUrl: null, discordUserId: discordUser.id };
+          setActiveOrder(newOrder); window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else { setModalMsg("❌ サーバーエラー: " + resData.error); setShowModal(true); }
+    } catch (err) { setModalMsg("❌ 送信エラーが発生しました。"); setShowModal(true); }
   };
-
-  useEffect(() => {
-    document.body.style.background = isDark ? '#1a1a1a' : '#f4f6f8';
-  }, [isDark]);
-
-  useEffect(() => {
-    if (isAdmin && password && !isLoggedIn) {
-      setTimeout(() => refreshAdmin(password), 500);
-    }
-
-    const code = new URLSearchParams(window.location.search).get('code');
-    if (code) {
-      window.history.replaceState({}, document.title, "/");
-      fetch(`${API_BASE}/api/auth/discord`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, redirectUri: REDIRECT_URI }),
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.id) {
-          setDiscordUser(data);
-          localStorage.setItem('discord_user', JSON.stringify(data));
-          setModalMsg(`ようこそ、${data.username}さん！\nログインしました。`);
-          setShowModal(true);
-        } else {
-          setModalMsg("ログインに失敗しました。");
-          setShowModal(true);
-        }
-      })
-      .catch(err => console.error(err));
-    } else {
-      const saved = localStorage.getItem('discord_user');
-      if (saved) setDiscordUser(JSON.parse(saved));
-    }
-  }, [isAdmin]);
 
   const refreshAdmin = async (pw: string) => {
       try {
           const res = await fetch(`${API_BASE}/api/admin/stats`, { headers: { 'Authorization': pw } });
-          if (res.ok) {
-              const d = await res.json();
-              setData(d);
-              setIsLoggedIn(true);
-              localStorage.setItem('admin_pw', pw);
-          } else {
-              throw new Error("Auth failed");
-          }
-      } catch (e) {
-          setIsLoggedIn(false);
-      }
+          if (res.ok) { const d = await res.json(); setData(d); setIsLoggedIn(true); localStorage.setItem('admin_pw', pw); }
+          else { throw new Error("Auth failed"); }
+      } catch (e) { setIsLoggedIn(false); }
   };
   
   const adminAction = (id: any, action: string, extra = {}) => {
@@ -636,144 +591,33 @@ export default function App() {
     fetch(`${API_BASE}/api/admin/action`, { method: 'POST', body: fd, headers: { 'Authorization': password } }).then(() => refreshAdmin(password));
   };
 
-  useEffect(() => {
-      if(discordUser) {
-          const check = () => fetch(`${API_BASE}/api/my-order?discordId=${discordUser.id}`).then(r=>r.json()).then(d=>{ if(d.found) setActiveOrder(d.order); });
-          check();
-          const timer = setInterval(check, 30000);
-          return () => clearInterval(timer);
-      }
-  }, [discordUser]);
-
-  const allItemsFlat = useMemo(() => [...DAIKO_LIST, ...ACC_LIST], []);
-  const totalSelectedPrice = useMemo(() => selected.reduce((sum, id) => sum + (allItemsFlat.find(p=>p.id===id)?.price || 0), 0), [selected, allItemsFlat]);
-
-  const filteredCategories = useMemo(() => {
-    if (!searchTerm) return DAIKO_CATEGORIES;
-    return DAIKO_CATEGORIES.map(c => ({
-      ...c, items: c.items.filter(i => !disabledItems.includes(i.id) && (i.name.includes(searchTerm) || i.description.includes(searchTerm)))
-    })).filter(c => c.items.length > 0);
-  }, [searchTerm, disabledItems]);
-
   const handlePaypay = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setPaypayLinkValue(val);
+    const val = e.target.value; setPaypayLinkValue(val);
     setPaypayLinkError(val && /paypay\.ne\.jp/.test(val) ? null : 'PayPayのリンクを含めてください');
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (paypayLinkError) return;
-    
-    if (!discordUser) {
-        setModalMsg("⚠️ 注文にはDiscordログインが必要です。");
-        setShowModal(true);
-        return;
-    }
-    
-    const fd = new FormData(e.currentTarget);
-    const order = {
-      username: discordUser.username,
-      discordUserId: discordUser.id,
-      tc: fd.get('tc'),
-      ap: fd.get('ap'),
-      paypayUrl: paypayLinkValue,
-      services: allItemsFlat.filter(p=>selected.includes(p.id)).map(p=>p.name).join(','),
-      total: totalSelectedPrice,
-      browserId: localStorage.getItem('wei_id') || Math.random().toString(36).substring(2, 15)
-    };
-
-    try {
-      const res = await fetch(`${API_BASE}/api/sync-order`, { method: 'POST', body: JSON.stringify(order), headers: { 'Content-Type': 'application/json' } });
-      const resData = await res.json();
-      
-      if (resData.success) {
-          setFormOpen(false);
-          setSelected([]);
-          setView('main');
-          
-          const newOrder = {
-              id: resData.orderId,
-              status: 'pending',
-              services: order.services,
-              totalPrice: order.total,
-              proofImageUrl: null,
-              discordUserId: discordUser.id
-          };
-          setActiveOrder(newOrder);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-
-      } else {
-          setModalMsg("❌ サーバーエラー: " + resData.error);
-          setShowModal(true);
+  // --- Effects ---
+  useEffect(() => { document.body.style.background = isDark ? '#1a1a1a' : '#f4f6f8'; }, [isDark]);
+  useEffect(() => {
+    if (isAdmin && password && !isLoggedIn) { setTimeout(() => refreshAdmin(password), 500); }
+    const code = new URLSearchParams(window.location.search).get('code');
+    if (code) {
+      window.history.replaceState({}, document.title, "/");
+      fetch(`${API_BASE}/api/auth/discord`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, redirectUri: REDIRECT_URI }), })
+      .then(res => res.json()).then(data => {
+        if (data.id) { setDiscordUser(data); localStorage.setItem('discord_user', JSON.stringify(data)); setModalMsg(`ようこそ、${data.username}さん！\nログインしました。`); setShowModal(true); }
+        else { setModalMsg("ログインに失敗しました。"); setShowModal(true); }
+      }).catch(err => console.error(err));
+    } else { const saved = localStorage.getItem('discord_user'); if (saved) setDiscordUser(JSON.parse(saved)); }
+  }, [isAdmin]);
+  useEffect(() => {
+      if(discordUser) {
+          const check = () => fetch(`${API_BASE}/api/my-order?discordId=${discordUser.id}`).then(r=>r.json()).then(d=>{ if(d.found) setActiveOrder(d.order); });
+          check(); const timer = setInterval(check, 30000); return () => clearInterval(timer);
       }
-    } catch (err) {
-      setModalMsg("❌ 送信エラーが発生しました。");
-      setShowModal(true);
-    }
-  };
+  }, [discordUser]);
 
-  const UserMenu = () => (
-    <div style={styles.userMenu}>
-        <div style={{...styles.menuItem, borderBottom: isDark?'1px solid #444':'1px solid #eee', cursor:'default', fontWeight:'bold'}}>
-            {discordUser.username}
-        </div>
-        <div onClick={()=>{ fetchHistory(); setView('settings'); setShowUserMenu(false); }} style={{...styles.menuItem, ':hover':{background:'#eee'}}}>
-            ⚙️ 設定・履歴
-        </div>
-        <div onClick={toggleTheme} style={styles.menuItem}>
-            {isDark ? '☀️ ライトモード' : '🌙 ダークモード'}
-        </div>
-        <div onClick={handleLogout} style={{...styles.menuItem, color:'#e74c3c'}}>
-            🚪 ログアウト
-        </div>
-    </div>
-  );
-
-  const SettingsView = () => (
-    <div style={styles.main}>
-        <h2 style={{color: styles.container.color}}>ユーザー設定</h2>
-        <div style={styles.card}>
-            <div style={{display:'flex', alignItems:'center', gap:'15px', marginBottom:'20px'}}>
-                <img src={`https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`} style={{width:'60px', borderRadius:'50%'}} alt="Avatar"/>
-                <div>
-                    <div style={{fontSize:'18px', fontWeight:'bold', color: styles.container.color}}>{discordUser.username}</div>
-                    <div style={{fontSize:'12px', color:'#777'}}>ID: {discordUser.id}</div>
-                </div>
-            </div>
-            
-            <h3 style={{color: styles.container.color, marginTop:'30px'}}>📦 注文履歴</h3>
-            {orderHistory.length > 0 ? (
-                <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
-                    {orderHistory.map(order => (
-                        <div key={order.id} style={{background: isDark?'#333':'#f9f9f9', padding:'15px', borderRadius:'10px', fontSize:'14px', color: styles.container.color}}>
-                            <div style={{display:'flex', justifyContent:'space-between', marginBottom:'5px'}}>
-                                <div style={{fontWeight:'bold'}}>#{order.id}</div>
-                                <div style={{
-                                    color: order.status === 'completed' ? '#4caf50' : 
-                                           order.status === 'in_progress' ? '#fbc02d' : 
-                                           order.status === 'scrubbed' ? '#999' : '#0071e3',
-                                    fontWeight:'bold'
-                                }}>
-                                    {order.status === 'completed' ? '完了' : 
-                                     order.status === 'in_progress' ? '作業中' : 
-                                     order.status === 'scrubbed' ? '抹消済' : '受付'}
-                                </div>
-                            </div>
-                            <div style={{fontSize:'12px', color:'#888', marginBottom:'5px'}}>{new Date(order.createdAt || Date.now()).toLocaleString()}</div>
-                            <div>{order.services}</div>
-                            <div style={{marginTop:'5px', color:'#0071e3', fontWeight:'bold'}}>¥{order.totalPrice}</div>
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                <p style={{color: styles.container.color}}>履歴はありません。</p>
-            )}
-        </div>
-        <button onClick={()=>setView('main')} style={{...styles.checkoutBtn, background:'#777', width:'100%'}}>戻る</button>
-    </div>
-  );
-
+  // --- Render (Admin) ---
   if (isAdmin) {
     if (!isLoggedIn) return (
       <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', height:'100vh', background:'#121212', color:'#fff'}}>
@@ -824,18 +668,13 @@ export default function App() {
                 <input type="file" id={`f-${o.id}`} style={{display:'none'}} onChange={(e)=>adminAction(o.id, 'complete', {image: e.target.files![0], userId: o.userId})} />
                 <button onClick={()=>document.getElementById(`f-${o.id}`)?.click()} style={{flex:1, background:'#4caf50', color:'#fff', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer', fontWeight:'bold'}}>✅ 完了</button>
                 <button onClick={()=>adminAction(o.id, 'scrub')} style={{flex:1, background:'#757575', border:'none', color:'#fff', borderRadius:'5px', padding:'8px', cursor:'pointer'}}>🗑️ 抹消</button>
-                <button 
-                    onClick={() => window.open(o.paypayUrl, '_blank')} 
-                    style={{flex:1, background:'#fff', color:'#000', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer', fontWeight:'bold', fontSize:'12px', display:'flex', alignItems:'center', justifyContent:'center'}}
-                >
-                    PayPay
-                </button>
+                <button onClick={() => window.open(o.paypayUrl, '_blank')} style={{flex:1, background:'#fff', color:'#000', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer', fontWeight:'bold', fontSize:'12px', display:'flex', alignItems:'center', justifyContent:'center'}}>PayPay</button>
               </div>
             </div>
           ))}
         </div>
         ) : (
-             <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:'15px'}}>
+             <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
                  <div style={styles.adminCard}>
                      <h3>一括設定</h3>
                      <button onClick={() => {
@@ -849,28 +688,26 @@ export default function App() {
                      }} style={{...styles.checkoutBtn, background: '#e74c3c'}}>アカウント販売を停止/再開</button>
                  </div>
 
-                 {[...DAIKO_LIST, ...ACC_LIST].map(item => (
-                     <div key={item.id} style={{...styles.adminCard, opacity: disabledItems.includes(item.id) ? 0.5 : 1}}>
-                         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                             <span style={{color:'#fff'}}>{item.name}</span>
-                             <button 
-                                onClick={()=>toggleProductConfig(item.id)} 
-                                style={{
-                                    background: disabledItems.includes(item.id) ? '#333' : '#4caf50', 
-                                    color:'#fff', border:'none', padding:'5px 10px', borderRadius:'5px', cursor:'pointer'
-                                }}
-                             >
-                                 {disabledItems.includes(item.id) ? '無効' : '有効'}
-                             </button>
+                 <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:'15px'}}>
+                     {[...DAIKO_LIST, ...ACC_LIST].map(item => (
+                         <div key={item.id} style={{...styles.adminCard, opacity: disabledItems.includes(item.id) ? 0.5 : 1}}>
+                             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                                 <span style={{color:'#fff'}}>{item.name}</span>
+                                 <button onClick={()=>toggleProductConfig(item.id)} style={{background: disabledItems.includes(item.id) ? '#333' : '#4caf50', color:'#fff', border:'none', padding:'5px 10px', borderRadius:'5px', cursor:'pointer'}}>
+                                     {disabledItems.includes(item.id) ? '無効' : '有効'}
+                                 </button>
+                             </div>
                          </div>
-                     </div>
-                 ))}
+                     ))}
+                 </div>
+                 <button onClick={() => setAdminView('orders')} style={{...styles.checkoutBtn, background:'#777', marginTop:'20px'}}>← 注文一覧に戻る</button>
              </div>
         )}
       </div>
     );
   }
 
+  // --- Render (User) ---
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -878,7 +715,7 @@ export default function App() {
         
         <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
             {discordUser && activeOrder && (
-                <button onClick={() => { setActiveOrder(activeOrder); setView('main'); setFormOpen(false); }} style={{background: isDark?'#333':'#f0f7ff', color:'#0071e3', border:'1px solid #0071e3', padding:'8px 12px', borderRadius:'20px', fontSize:'12px', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>
+                <button onClick={() => { setView('main'); setFormOpen(false); }} style={{background: isDark?'#333':'#f0f7ff', color:'#0071e3', border:'1px solid #0071e3', padding:'8px 12px', borderRadius:'20px', fontSize:'12px', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>
                     📦 注文状況
                 </button>
             )}
@@ -891,12 +728,7 @@ export default function App() {
             
             {discordUser ? (
                 <div style={{position:'relative'}}>
-                    <img 
-                        src={`https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`} 
-                        alt="User" 
-                        style={{width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', border: '2px solid #eee'}}
-                        onClick={() => setShowUserMenu(!showUserMenu)}
-                    />
+                    <img src={`https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`} alt="User" style={{width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', border: '2px solid #eee'}} onClick={() => setShowUserMenu(!showUserMenu)}/>
                     {showUserMenu && <UserMenu />}
                 </div>
             ) : (
@@ -906,36 +738,19 @@ export default function App() {
       </header>
 
       <main style={styles.main}>
-        {view === 'settings' && discordUser ? (
-            <SettingsView />
-        ) : activeOrder && activeOrder.status !== 'scrubbed' && view === 'main' && !formOpen ? (
-            <StatusDashboard order={activeOrder} />
-        ) : view === 'main' && !formOpen ? (
+        {view === 'settings' && discordUser ? ( <SettingsView /> ) :
+         activeOrder && activeOrder.status !== 'scrubbed' && view === 'main' && !formOpen ? ( <StatusDashboard order={activeOrder} /> ) :
+         view === 'main' && !formOpen ? (
           <>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginBottom:'30px'}}>
-              <div onClick={() => setView('daiko')} style={styles.card}>
-                <div style={{fontSize:'40px', marginBottom:'10px'}}>🎮</div>
-                <div style={{fontWeight:'bold', fontSize:'18px', color: isDark?'#fff':'#333'}}>代行サービス</div>
-                <div style={{fontSize:'12px', color:'#777', marginTop:'5px'}}>最強のデータを作成</div>
-              </div>
-              <div onClick={() => setView('account')} style={styles.card}>
-                <div style={{fontSize:'40px', marginBottom:'10px'}}>🎁</div>
-                <div style={{fontWeight:'bold', fontSize:'18px', color: isDark?'#fff':'#333'}}>アカウント販売</div>
-                <div style={{fontSize:'12px', color:'#777', marginTop:'5px'}}>即座にスタート</div>
-              </div>
+              <div onClick={() => setView('daiko')} style={styles.card}><div style={{fontSize:'40px', marginBottom:'10px'}}>🎮</div><div style={{fontWeight:'bold', fontSize:'18px', color: isDark?'#fff':'#333'}}>代行サービス</div><div style={{fontSize:'12px', color:'#777', marginTop:'5px'}}>最強のデータを作成</div></div>
+              <div onClick={() => setView('account')} style={styles.card}><div style={{fontSize:'40px', marginBottom:'10px'}}>🎁</div><div style={{fontWeight:'bold', fontSize:'18px', color: isDark?'#fff':'#333'}}>アカウント販売</div><div style={{fontSize:'12px', color:'#777', marginTop:'5px'}}>即座にスタート</div></div>
             </div>
-            
             <div style={{...styles.card, background: isDark?'#333':'#fff9c4', border: isDark?'1px solid #555':'1px solid #fbc02d'}}>
               <h3 style={{margin:'0 0 10px 0', fontSize:'16px', color: isDark?'#fff':'#333'}}>📢 お知らせ</h3>
-              <p style={{margin:0, fontSize:'14px', color: isDark?'#ccc':'#333'}}>
-                現在、全ての代行メニューが通常通りご利用いただけます。<br/>
-                BAN保証オプションの加入を強く推奨しております。
-              </p>
+              <p style={{margin:0, fontSize:'14px', color: isDark?'#ccc':'#333'}}>現在、全ての代行メニューが通常通りご利用いただけます。<br/>BAN保証オプションの加入を強く推奨しております。</p>
               {discordUser && activeOrder && (
-                  <button 
-                      onClick={() => { setActiveOrder(activeOrder); setView('main'); setFormOpen(false); }} 
-                      style={{...styles.checkoutBtn, background:'#0071e3', color:'#fff', width:'100%', marginTop:'15px', padding:'10px 20px', fontSize:'14px'}}
-                  >
+                  <button onClick={() => { setView('main'); setFormOpen(false); }} style={{...styles.checkoutBtn, background:'#0071e3', color:'#fff', width:'100%', marginTop:'15px', padding:'10px 20px', fontSize:'14px'}}>
                       📦 注文状況を確認する
                   </button>
               )}
