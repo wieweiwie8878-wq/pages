@@ -5,9 +5,9 @@ const API_BASE = "https://worker.nasserl.workers.dev"; // WorkersのURL
 // Discord設定
 const DISCORD_CLIENT_ID = "1456569335190388951"; 
 const REDIRECT_URI = "https://kenji123.f5.si/"; 
-const SUPPORT_SERVER_URL = "https://discord.gg/YOUR_INVITE_CODE"; // ★ここに実際の招待コードを入れてください
+const SUPPORT_SERVER_URL = "https://discord.gg/t68XQeTtx8"; // ★更新しました
 
-// 商品データの定義
+// 商品データの定義 (前回と同じ)
 const DAIKO_CATEGORIES = [
   {
     id: 'basic_services_80',
@@ -372,6 +372,7 @@ export default function App() {
 
   const StatusDashboard = ({ order }: { order: any }) => {
     const isCompleted = order.status === 'completed';
+    const isInProgress = order.status === 'in_progress';
     const isScrubbed = order.status === 'scrubbed';
     const orderToken = `${order.id}-${order.discordUserId?.substring(0, 5) || 'xxxx'}`;
 
@@ -379,17 +380,17 @@ export default function App() {
         <div style={{...styles.main, maxWidth:'600px', marginTop:'40px'}}>
             <div style={{textAlign:'center', marginBottom:'30px'}}>
                 <div style={{fontSize:'60px', marginBottom:'10px'}}>
-                    {isCompleted ? '🎉' : isScrubbed ? '🗑️' : '⏳'}
+                    {isCompleted ? '🎉' : isScrubbed ? '🗑️' : isInProgress ? '🔄' : '⏳'}
                 </div>
                 <h2 style={{fontSize:'24px', margin:0, color: isDark?'#fff':'#333'}}>
-                    {isCompleted ? '作業が完了しました！' : isScrubbed ? 'データ抹消済み' : '注文を受け付けました'}
+                    {isCompleted ? '作業が完了しました！' : isScrubbed ? 'データ抹消済み' : isInProgress ? '作業中です' : '注文を受け付けました'}
                 </h2>
                 <p style={{color:'#888', marginTop:'5px'}}>
-                    {isCompleted ? 'ご利用ありがとうございました。' : '担当者が作業を開始します。しばらくお待ちください。'}
+                    {isCompleted ? 'ご利用ありがとうございました。' : isInProgress ? '完了までお待ちください。' : '担当者が作業を開始します。'}
                 </p>
             </div>
 
-            <div style={{...styles.card, border: `2px solid ${isCompleted ? '#4caf50' : '#0071e3'}`, background: isDark?'#222':'#fff'}}>
+            <div style={{...styles.card, border: `2px solid ${isCompleted ? '#4caf50' : isInProgress ? '#fbc02d' : '#0071e3'}`, background: isDark?'#222':'#fff'}}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom: isDark?'1px solid #444':'1px solid #eee', paddingBottom:'15px', marginBottom:'15px'}}>
                     <span style={{fontSize:'14px', color:'#888'}}>注文番号</span>
                     <span style={{fontSize:'18px', fontWeight:'bold', color: isDark?'#fff':'#333'}}>#{order.id}</span>
@@ -422,11 +423,11 @@ export default function App() {
                 <div style={{marginBottom:'30px'}}>
                     <div style={{display:'flex', justifyContent:'space-between', fontSize:'12px', color:'#888', marginBottom:'5px'}}>
                         <span>受付済み</span>
-                        <span>作業中</span>
+                        <span style={{color: isInProgress ? '#fbc02d' : '#888'}}>作業中</span>
                         <span>完了</span>
                     </div>
                     <div style={{height:'6px', background:'#eee', borderRadius:'3px', position:'relative', overflow:'hidden'}}>
-                        <div style={{position:'absolute', left:0, top:0, bottom:0, width:'33%', background:'#0071e3', borderRadius:'3px'}}></div>
+                        <div style={{position:'absolute', left:0, top:0, bottom:0, width: isInProgress ? '66%' : '33%', background: isInProgress ? '#fbc02d' : '#0071e3', borderRadius:'3px', transition:'width 0.5s'}}></div>
                         <div style={{position:'absolute', left:0, top:0, bottom:0, width:'30%', background:'rgba(255,255,255,0.5)', animation:'loading 1.5s infinite'}}></div>
                     </div>
                     <style>{`@keyframes loading { 0% { left: 0; } 100% { left: 100%; } }`}</style>
@@ -453,6 +454,9 @@ export default function App() {
                     <button onClick={() => setActiveOrder(null)} style={{...styles.checkoutBtn, background:'#333', padding:'15px 40px'}}>新しい注文をする</button>
                 </div>
             )}
+            
+            {/* メニューに戻るボタン */}
+            <button onClick={() => setActiveOrder(null)} style={{width:'100%', background:'none', border:'none', color: isDark?'#aaa':'#555', marginTop:'20px', cursor:'pointer'}}>← メニューに戻る</button>
         </div>
     );
   };
@@ -606,7 +610,6 @@ export default function App() {
       const resData = await res.json();
       
       if (resData.success) {
-          // モーダルは出さず、フォームを閉じて画面をステータスダッシュボードへ切り替え
           setFormOpen(false);
           setSelected([]);
           
@@ -630,8 +633,6 @@ export default function App() {
       setShowModal(true);
     }
   };
-
-  // --- View Components ---
 
   const UserMenu = () => (
     <div style={styles.userMenu}>
@@ -677,8 +678,6 @@ export default function App() {
     </div>
   );
 
-  // --- Render ---
-
   if (isAdmin) {
     if (!isLoggedIn) return (
       <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', height:'100vh', background:'#121212', color:'#fff'}}>
@@ -716,8 +715,10 @@ export default function App() {
                 {o.services}
               </div>
               <div style={{display:'flex', gap:'5px', flexWrap:'wrap'}}>
+                {/* 開始ボタンを追加 */}
+                <button onClick={()=>adminAction(o.id, 'start')} style={{flex:1, background:'#fbc02d', color:'#000', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer', fontWeight:'bold'}}>🚀 開始</button>
                 <input type="file" id={`f-${o.id}`} style={{display:'none'}} onChange={(e)=>adminAction(o.id, 'complete', {image: e.target.files![0], userId: o.userId})} />
-                <button onClick={()=>document.getElementById(`f-${o.id}`)?.click()} style={{flex:1, background:'#4caf50', color:'#fff', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer', fontWeight:'bold'}}>✅ 完了通知</button>
+                <button onClick={()=>document.getElementById(`f-${o.id}`)?.click()} style={{flex:1, background:'#4caf50', color:'#fff', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer', fontWeight:'bold'}}>✅ 完了</button>
                 <button onClick={()=>adminAction(o.id, 'scrub')} style={{flex:1, background:'#757575', border:'none', color:'#fff', borderRadius:'5px', padding:'8px', cursor:'pointer'}}>🗑️ 抹消</button>
                 <a href={o.paypayUrl} target="_blank" rel="noreferrer" style={{flex:1, background:'#fff', color:'#000', textDecoration:'none', padding:'8px', borderRadius:'5px', fontSize:'12px', textAlign:'center', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'bold'}}>PayPay</a>
               </div>
@@ -734,6 +735,13 @@ export default function App() {
         <h1 onClick={()=>{setView('main'); setFormOpen(false);}} style={styles.headerTitle}>WEI STORE 🐾</h1>
         
         <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+            {/* 常時表示の注文確認ボタン */}
+            {discordUser && activeOrder && (
+                <button onClick={() => { setActiveOrder(activeOrder); setView('main'); setFormOpen(false); }} style={{background: isDark?'#333':'#f0f7ff', color:'#0071e3', border:'1px solid #0071e3', padding:'8px 12px', borderRadius:'20px', fontSize:'12px', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>
+                    📦 注文状況
+                </button>
+            )}
+
             {!discordUser && (
                 <button onClick={toggleTheme} style={{background:'none', border:'none', fontSize:'20px', cursor:'pointer'}}>
                     {isDark ? '☀️' : '🌙'}
