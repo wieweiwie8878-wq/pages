@@ -261,11 +261,12 @@ export default function App() {
   
   const [discordUser, setDiscordUser] = useState<any>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [activeOrder, setActiveOrder] = useState<any>(null); // アクティブな注文
 
   const [formOpen, setFormOpen] = useState(false);
   const [paypayLinkValue, setPaypayLinkValue] = useState('');
   const [paypayLinkError, setPaypayLinkError] = useState<string | null>(null);
-  const formRef = useRef<HTMLDivElement>(null); // フォームへのスクロール用
+  const formRef = useRef<HTMLDivElement>(null);
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [password, setPassword] = useState(localStorage.getItem('admin_pw') || '');
@@ -274,6 +275,22 @@ export default function App() {
 
   const [showModal, setShowModal] = useState(false);
   const [modalMsg, setModalMsg] = useState('');
+
+  // 注文状況定期チェック
+  useEffect(() => {
+    if (discordUser) {
+        const checkOrder = () => {
+            fetch(`${API_BASE}/api/my-order?discordId=${discordUser.id}`)
+                .then(r => r.json())
+                .then(d => {
+                    if (d.found) setActiveOrder(d.order);
+                });
+        };
+        checkOrder();
+        const interval = setInterval(checkOrder, 30000); // 30秒更新
+        return () => clearInterval(interval);
+    }
+  }, [discordUser]);
 
   const handleDiscordLogin = () => {
     const params = new URLSearchParams({
@@ -307,6 +324,36 @@ export default function App() {
             <button onClick={onClose} style={{...styles.checkoutBtn, width: '100%', marginTop: '20px'}}>閉じる</button>
         )}
       </div>
+    </div>
+  );
+
+  const StatusDashboard = ({ order }: { order: any }) => (
+    <div style={{...styles.card, border: '2px solid #0071e3', background:'#f0f7ff'}}>
+        <h3 style={{textAlign:'center', color:'#0071e3', marginTop:0}}>
+            {order.status === 'completed' ? '✅ 作業完了' : '⏳ 作業中 / 待機中'}
+        </h3>
+        
+        <div style={{textAlign:'center', marginBottom:'15px'}}>
+            <div style={{fontSize:'12px', color:'#777'}}>注文番号: #{order.id}</div>
+            <div style={{fontSize:'14px', fontWeight:'bold'}}>{order.services}</div>
+        </div>
+
+        {order.status === 'completed' ? (
+            <div style={{textAlign:'center'}}>
+                <p>作業が完了しました！<br/>ゲームにログインして確認してください。</p>
+                {order.proofImageUrl && (
+                    <div style={{margin:'15px 0'}}>
+                        <img src={order.proofImageUrl} alt="完了証拠" style={{maxWidth:'100%', borderRadius:'10px', boxShadow:'0 5px 15px rgba(0,0,0,0.1)'}} />
+                    </div>
+                )}
+                <button onClick={() => setActiveOrder(null)} style={{...styles.checkoutBtn, background:'#333', fontSize:'14px'}}>新しい注文をする</button>
+            </div>
+        ) : (
+            <div style={{textAlign:'center'}}>
+                <div style={{fontSize:'40px', margin:'20px 0'}}>🔄</div>
+                <p>現在作業中です。しばらくお待ちください。<br/>この画面のまま待機するか、Discordの通知をお待ちください。</p>
+            </div>
+        )}
     </div>
   );
 
@@ -448,6 +495,12 @@ export default function App() {
       setShowModal(true);
       setFormOpen(false);
       setSelected([]);
+      // 注文完了後すぐに最新状態を取得してダッシュボードへ遷移
+      setTimeout(() => {
+          fetch(`${API_BASE}/api/my-order?discordId=${discordUser.id}`)
+                .then(r => r.json())
+                .then(d => { if(d.found) setActiveOrder(d.order); });
+      }, 1000);
     } catch (err) {
       setModalMsg("❌ 送信エラーが発生しました。");
       setShowModal(true);
@@ -529,7 +582,10 @@ export default function App() {
       </header>
 
       <main style={styles.main}>
-        {view === 'main' ? (
+        {/* アクティブな注文があれば表示、なければ通常メニュー */}
+        {activeOrder && activeOrder.status !== 'scrubbed' ? (
+            <StatusDashboard order={activeOrder} />
+        ) : view === 'main' ? (
           <>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginBottom:'30px'}}>
               <div onClick={() => setView('daiko')} style={styles.card}>
@@ -624,7 +680,7 @@ export default function App() {
         )}
       </main>
 
-      {!formOpen && selected.length > 0 && (
+      {!formOpen && !activeOrder && selected.length > 0 && (
         <div style={styles.floatingFooter}>
           <div style={{fontWeight:'bold', fontSize:'16px'}}>
             {selected.length}点 <span style={{color:'#0071e3', marginLeft:'5px'}}>¥{totalSelectedPrice}</span>
