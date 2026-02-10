@@ -259,26 +259,21 @@ export default function App() {
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // ユーザー情報
   const [discordUser, setDiscordUser] = useState<any>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // 注文フォーム用state
   const [formOpen, setFormOpen] = useState(false);
   const [paypayLinkValue, setPaypayLinkValue] = useState('');
   const [paypayLinkError, setPaypayLinkError] = useState<string | null>(null);
   
-  // Admin用
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [password, setPassword] = useState(localStorage.getItem('admin_pw') || '');
   const [data, setData] = useState<any>(null);
   const isAdmin = window.location.hostname.startsWith('admin.');
 
-  // モーダル
   const [showModal, setShowModal] = useState(false);
   const [modalMsg, setModalMsg] = useState('');
 
-  // Discordログイン
   const handleDiscordLogin = () => {
     const params = new URLSearchParams({
       client_id: DISCORD_CLIENT_ID,
@@ -296,7 +291,6 @@ export default function App() {
     window.location.reload();
   };
 
-  // カスタムモーダル
   const CustomModal = ({ message, onClose }: { message: string; onClose: () => void }) => (
     <div style={styles.modalOverlay}>
       <div style={styles.modalContent}>
@@ -315,7 +309,6 @@ export default function App() {
     </div>
   );
 
-  // ログイン確認関数
   const checkLogin = () => {
     if (!discordUser) {
       setModalMsg("⚠️ 商品を選択するにはDiscordログインが必要です。\n\nログインして続行しますか？");
@@ -325,7 +318,6 @@ export default function App() {
     return true;
   };
 
-  // 商品選択トグル
   const toggleItem = (id: string) => {
     if (!checkLogin()) return;
     setSelected(prev => prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
@@ -349,7 +341,6 @@ export default function App() {
     }
   };
 
-  // 初期ロード時の処理
   useEffect(() => {
     if (isAdmin && password && !isLoggedIn) {
       setTimeout(() => refreshAdmin(password), 500);
