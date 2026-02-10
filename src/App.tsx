@@ -14,8 +14,8 @@ const DAIKO_CATEGORIES = [
     name: '💰 80円 基本強化パック',
     description: 'ゲーム進行の基礎となる必須アイテムをお得に強化。',
     items: [
-      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約99999）まで増加。ガチャ引き放題！' },
-      { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値（約99999999）まで増加。キャラ強化に必須！' },
+      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約99999）まで増加。' },
+      { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値（約99999999）まで増加。' },
       { id: 't_norm', name: '通常チケ(100枚)', price: 80, description: '通常チケットを上限の100枚まで付与。' },
       { id: 't_rare', name: 'レアチケ(100枚)', price: 80, description: 'レアチケットを上限の100枚まで付与。' },
       { id: 'st_one', name: '1ステージ開放', price: 80, description: '攻略が難しいステージを1つ指定して開放。' },
@@ -294,7 +294,7 @@ const getStyles = (isDark: boolean) => ({
     position: 'relative' as const,
     boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
   },
-};
+});
 
 export default function App() {
   const [view, setView] = useState<'main' | 'daiko' | 'account' | 'settings'>('main');
@@ -641,8 +641,6 @@ export default function App() {
         )}
     </div>
   );
-
-  // --- Render ---
 
   if (isAdmin) {
     if (!isLoggedIn) return (
