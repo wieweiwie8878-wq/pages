@@ -75,6 +75,7 @@ const ACC_ITEMS = [
 const DAIKO_LIST = DAIKO_CATEGORIES.flatMap(category => category.items);
 const ACC_LIST = ACC_ITEMS;
 
+// スタイル定義
 const getStyles = (isDark: boolean) => ({
   container: {
     fontFamily: '"Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif',
@@ -120,6 +121,7 @@ const getStyles = (isDark: boolean) => ({
   categoryHeader: {
     display: 'flex',
     justifyContent: 'space-between',
+    S
     alignItems: 'center',
     padding: '15px',
     background: isDark ? '#333' : '#fff',
@@ -307,7 +309,6 @@ export default function App() {
   const [orderHistory, setOrderHistory] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<string[]>(JSON.parse(localStorage.getItem('favorites') || '[]'));
   
-  // 商品管理
   const [disabledItems, setDisabledItems] = useState<string[]>([]);
   const [adminView, setAdminView] = useState<'orders' | 'config'>('orders');
 
@@ -376,7 +377,7 @@ export default function App() {
   }, []);
 
   const postReview = async () => {
-    if (!activeOrder || !reviewContent) return;
+    if (!activeOrder || !reviewContent || !discordUser) return;
     try {
         await fetch(`${API_BASE}/api/post-review`, {
             method: 'POST',
@@ -652,7 +653,7 @@ export default function App() {
     return DAIKO_CATEGORIES.map(c => ({
       ...c, items: c.items.filter(i => !disabledItems.includes(i.id) && (i.name.includes(searchTerm) || i.description.includes(searchTerm)))
     })).filter(c => c.items.length > 0);
-  }, [searchTerm, disabledItems]); // disabledItemsを依存配列に追加
+  }, [searchTerm, disabledItems]);
 
   const handlePaypay = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -711,8 +712,6 @@ export default function App() {
       setShowModal(true);
     }
   };
-
-  // --- View Components ---
 
   const UserMenu = () => (
     <div style={styles.userMenu}>
@@ -775,8 +774,6 @@ export default function App() {
     </div>
   );
 
-  // --- Render ---
-
   if (isAdmin) {
     if (!isLoggedIn) return (
       <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', height:'100vh', background:'#121212', color:'#fff'}}>
@@ -788,7 +785,7 @@ export default function App() {
     return (
       <div style={styles.adminContainer}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
-          <h2 style={{margin:0}}>管理画面</h2>
+          <h2 style={{margin:0}}>魏 司令官：管理画面</h2>
           <div style={{display:'flex', gap:'10px'}}>
              <button onClick={()=>setAdminView('orders')} style={{background: adminView==='orders'?'#0071e3':'#333', color:'#fff', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer'}}>注文一覧</button>
              <button onClick={()=>setAdminView('config')} style={{background: adminView==='config'?'#0071e3':'#333', color:'#fff', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer'}}>商品管理</button>
