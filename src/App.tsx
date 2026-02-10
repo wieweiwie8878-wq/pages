@@ -5,17 +5,17 @@ const API_BASE = "https://worker.nasserl.workers.dev"; // WorkersのURL
 // Discord設定
 const DISCORD_CLIENT_ID = "1456569335190388951"; 
 const REDIRECT_URI = "https://kenji123.f5.si/"; 
-const SUPPORT_SERVER_URL = "https://discord.gg/t68XQeTtx8"; // ★更新しました
+const SUPPORT_SERVER_URL = "https://discord.gg/t68XQeTtx8"; 
 
-// 商品データの定義 (前回と同じ)
+// 商品データの定義
 const DAIKO_CATEGORIES = [
   {
     id: 'basic_services_80',
     name: '💰 80円 基本強化パック',
     description: 'ゲーム進行の基礎となる必須アイテムをお得に強化。',
     items: [
-      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約99999）まで増加。ガチャ引き放題！' },
-      { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値（約99999999）まで増加。キャラ強化に必須！' },
+      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約99999）まで増加。' },
+      { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値（約99999999）まで増加。' },
       { id: 't_norm', name: '通常チケ(100枚)', price: 80, description: '通常チケットを上限の100枚まで付与。' },
       { id: 't_rare', name: 'レアチケ(100枚)', price: 80, description: 'レアチケットを上限の100枚まで付与。' },
       { id: 'st_one', name: '1ステージ開放', price: 80, description: '攻略が難しいステージを1つ指定して開放。' },
@@ -129,6 +129,10 @@ const getStyles = (isDark: boolean) => ({
     userSelect: 'none' as const,
     border: isDark ? '1px solid #444' : '1px solid #eee',
     marginBottom: '8px',
+  },
+  categoryTitle: {
+    fontWeight: 'bold',
+    fontSize: '16px',
   },
   itemContainer: {
     padding: '10px 15px',
@@ -455,7 +459,6 @@ export default function App() {
                 </div>
             )}
             
-            {/* メニューに戻るボタン */}
             <button onClick={() => setActiveOrder(null)} style={{width:'100%', background:'none', border:'none', color: isDark?'#aaa':'#555', marginTop:'20px', cursor:'pointer'}}>← メニューに戻る</button>
         </div>
     );
@@ -612,6 +615,7 @@ export default function App() {
       if (resData.success) {
           setFormOpen(false);
           setSelected([]);
+          setView('main');
           
           const newOrder = {
               id: resData.orderId,
@@ -633,6 +637,8 @@ export default function App() {
       setShowModal(true);
     }
   };
+
+  // --- View Components ---
 
   const UserMenu = () => (
     <div style={styles.userMenu}>
@@ -678,6 +684,8 @@ export default function App() {
     </div>
   );
 
+  // --- Render ---
+
   if (isAdmin) {
     if (!isLoggedIn) return (
       <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', height:'100vh', background:'#121212', color:'#fff'}}>
@@ -704,6 +712,9 @@ export default function App() {
                 <div>📅 {new Date(o.createdAt || Date.now()).toLocaleString()}</div>
                 <div>🔒 IP: <span style={{color:'#ff5252'}}>{o.ipAddress}</span></div>
                 <div>🆔 Device: {o.browserId}</div>
+                <div style={{marginTop:'5px', fontWeight:'bold', color: o.status === 'completed' ? '#4caf50' : o.status === 'in_progress' ? '#fbc02d' : '#fff'}}>
+                    Status: {o.status}
+                </div>
               </div>
               <div style={{background:'#000', padding:'10px', borderRadius:'5px', fontFamily:'monospace', fontSize:'12px', wordBreak:'break-all', marginBottom:'10px', color:'#ccc'}}>
                 <div style={{color:'#888', marginBottom:'2px'}}>引き継ぎ情報:</div>
@@ -715,12 +726,16 @@ export default function App() {
                 {o.services}
               </div>
               <div style={{display:'flex', gap:'5px', flexWrap:'wrap'}}>
-                {/* 開始ボタンを追加 */}
                 <button onClick={()=>adminAction(o.id, 'start')} style={{flex:1, background:'#fbc02d', color:'#000', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer', fontWeight:'bold'}}>🚀 開始</button>
                 <input type="file" id={`f-${o.id}`} style={{display:'none'}} onChange={(e)=>adminAction(o.id, 'complete', {image: e.target.files![0], userId: o.userId})} />
                 <button onClick={()=>document.getElementById(`f-${o.id}`)?.click()} style={{flex:1, background:'#4caf50', color:'#fff', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer', fontWeight:'bold'}}>✅ 完了</button>
                 <button onClick={()=>adminAction(o.id, 'scrub')} style={{flex:1, background:'#757575', border:'none', color:'#fff', borderRadius:'5px', padding:'8px', cursor:'pointer'}}>🗑️ 抹消</button>
-                <a href={o.paypayUrl} target="_blank" rel="noreferrer" style={{flex:1, background:'#fff', color:'#000', textDecoration:'none', padding:'8px', borderRadius:'5px', fontSize:'12px', textAlign:'center', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'bold'}}>PayPay</a>
+                <button 
+                    onClick={() => window.open(o.paypayUrl, '_blank')} 
+                    style={{flex:1, background:'#fff', color:'#000', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer', fontWeight:'bold', fontSize:'12px', display:'flex', alignItems:'center', justifyContent:'center'}}
+                >
+                    PayPay
+                </button>
               </div>
             </div>
           ))}
@@ -735,7 +750,6 @@ export default function App() {
         <h1 onClick={()=>{setView('main'); setFormOpen(false);}} style={styles.headerTitle}>WEI STORE 🐾</h1>
         
         <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-            {/* 常時表示の注文確認ボタン */}
             {discordUser && activeOrder && (
                 <button onClick={() => { setActiveOrder(activeOrder); setView('main'); setFormOpen(false); }} style={{background: isDark?'#333':'#f0f7ff', color:'#0071e3', border:'1px solid #0071e3', padding:'8px 12px', borderRadius:'20px', fontSize:'12px', fontWeight:'bold', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>
                     📦 注文状況
