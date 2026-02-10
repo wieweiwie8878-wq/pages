@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 
 const API_BASE = "https://worker.nasserl.workers.dev"; // WorkersのURL
 
@@ -265,6 +265,7 @@ export default function App() {
   const [formOpen, setFormOpen] = useState(false);
   const [paypayLinkValue, setPaypayLinkValue] = useState('');
   const [paypayLinkError, setPaypayLinkError] = useState<string | null>(null);
+  const formRef = useRef<HTMLDivElement>(null); // フォームへのスクロール用
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [password, setPassword] = useState(localStorage.getItem('admin_pw') || '');
@@ -339,6 +340,13 @@ export default function App() {
       setSelected([]);
       setExpandedCategories([]);
     }
+  };
+
+  const openForm = () => {
+    setFormOpen(true);
+    setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
   };
 
   useEffect(() => {
@@ -585,7 +593,7 @@ export default function App() {
         )}
 
         {formOpen && selected.length > 0 && (
-          <div style={styles.formContainer}>
+          <div ref={formRef} style={styles.formContainer}>
             <h2 style={{textAlign:'center', marginBottom:'20px'}}>注文情報の入力</h2>
             <form onSubmit={handleSubmit}>
               <div style={styles.inputGroup}>
@@ -621,7 +629,7 @@ export default function App() {
           <div style={{fontWeight:'bold', fontSize:'16px'}}>
             {selected.length}点 <span style={{color:'#0071e3', marginLeft:'5px'}}>¥{totalSelectedPrice}</span>
           </div>
-          <button onClick={() => setFormOpen(true)} style={styles.checkoutBtn}>手続きへ</button>
+          <button onClick={openForm} style={styles.checkoutBtn}>手続きへ</button>
         </div>
       )}
 
