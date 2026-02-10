@@ -130,10 +130,6 @@ const getStyles = (isDark: boolean) => ({
     border: isDark ? '1px solid #444' : '1px solid #eee',
     marginBottom: '8px',
   },
-  categoryTitle: {
-    fontWeight: 'bold',
-    fontSize: '16px',
-  },
   itemContainer: {
     padding: '10px 15px',
     background: isDark ? '#222' : '#f9fafb',
@@ -309,6 +305,7 @@ export default function App() {
   const [discordUser, setDiscordUser] = useState<any>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [activeOrder, setActiveOrder] = useState<any>(null);
+  const [orderHistory, setOrderHistory] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<string[]>(JSON.parse(localStorage.getItem('favorites') || '[]'));
 
   const [formOpen, setFormOpen] = useState(false);
@@ -355,6 +352,14 @@ export default function App() {
     setShowUserMenu(false);
     setView('main');
     window.location.reload();
+  };
+
+  const fetchHistory = () => {
+      if(discordUser) {
+          fetch(`${API_BASE}/api/my-history?discordId=${discordUser.id}`)
+            .then(r=>r.json())
+            .then(d=>{ if(d.history) setOrderHistory(d.history); });
+      }
   };
 
   const CustomModal = ({ message, onClose }: { message: string; onClose: () => void }) => (
@@ -459,7 +464,7 @@ export default function App() {
                 </div>
             )}
             
-            <button onClick={() => setActiveOrder(null)} style={{width:'100%', background:'none', border:'none', color: isDark?'#aaa':'#555', marginTop:'20px', cursor:'pointer'}}>← メニューに戻る</button>
+            <button onClick={() => setView('main')} style={{width:'100%', background:'none', border:'none', color: isDark?'#aaa':'#555', marginTop:'20px', cursor:'pointer'}}>← メニューに戻る</button>
         </div>
     );
   };
@@ -638,14 +643,12 @@ export default function App() {
     }
   };
 
-  // --- View Components ---
-
   const UserMenu = () => (
     <div style={styles.userMenu}>
         <div style={{...styles.menuItem, borderBottom: isDark?'1px solid #444':'1px solid #eee', cursor:'default', fontWeight:'bold'}}>
             {discordUser.username}
         </div>
-        <div onClick={()=>{setView('settings'); setShowUserMenu(false);}} style={{...styles.menuItem, ':hover':{background:'#eee'}}}>
+        <div onClick={()=>{ fetchHistory(); setView('settings'); setShowUserMenu(false); }} style={{...styles.menuItem, ':hover':{background:'#eee'}}}>
             ⚙️ 設定・履歴
         </div>
         <div onClick={toggleTheme} style={styles.menuItem}>
@@ -669,12 +672,29 @@ export default function App() {
                 </div>
             </div>
             
-            <h3 style={{color: styles.container.color}}>📦 注文履歴 (最新)</h3>
-            {activeOrder ? (
-                <div style={{background: isDark?'#333':'#f9f9f9', padding:'15px', borderRadius:'10px', fontSize:'14px', color: styles.container.color}}>
-                    <div style={{fontWeight:'bold'}}>#{activeOrder.id} - {activeOrder.status === 'completed' ? '完了' : '進行中'}</div>
-                    <div>{activeOrder.services}</div>
-                    <div style={{marginTop:'5px', color:'#0071e3'}}>¥{activeOrder.totalPrice}</div>
+            <h3 style={{color: styles.container.color, marginTop:'30px'}}>📦 注文履歴</h3>
+            {orderHistory.length > 0 ? (
+                <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+                    {orderHistory.map(order => (
+                        <div key={order.id} style={{background: isDark?'#333':'#f9f9f9', padding:'15px', borderRadius:'10px', fontSize:'14px', color: styles.container.color}}>
+                            <div style={{display:'flex', justifyContent:'space-between', marginBottom:'5px'}}>
+                                <div style={{fontWeight:'bold'}}>#{order.id}</div>
+                                <div style={{
+                                    color: order.status === 'completed' ? '#4caf50' : 
+                                           order.status === 'in_progress' ? '#fbc02d' : 
+                                           order.status === 'scrubbed' ? '#999' : '#0071e3',
+                                    fontWeight:'bold'
+                                }}>
+                                    {order.status === 'completed' ? '完了' : 
+                                     order.status === 'in_progress' ? '作業中' : 
+                                     order.status === 'scrubbed' ? '抹消済' : '受付'}
+                                </div>
+                            </div>
+                            <div style={{fontSize:'12px', color:'#888', marginBottom:'5px'}}>{new Date(order.createdAt || Date.now()).toLocaleString()}</div>
+                            <div>{order.services}</div>
+                            <div style={{marginTop:'5px', color:'#0071e3', fontWeight:'bold'}}>¥{order.totalPrice}</div>
+                        </div>
+                    ))}
                 </div>
             ) : (
                 <p style={{color: styles.container.color}}>履歴はありません。</p>
@@ -683,8 +703,6 @@ export default function App() {
         <button onClick={()=>setView('main')} style={{...styles.checkoutBtn, background:'#777', width:'100%'}}>戻る</button>
     </div>
   );
-
-  // --- Render ---
 
   if (isAdmin) {
     if (!isLoggedIn) return (
