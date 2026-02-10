@@ -261,7 +261,7 @@ export default function App() {
   
   const [discordUser, setDiscordUser] = useState<any>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [activeOrder, setActiveOrder] = useState<any>(null); // アクティブな注文
+  const [activeOrder, setActiveOrder] = useState<any>(null);
 
   const [formOpen, setFormOpen] = useState(false);
   const [paypayLinkValue, setPaypayLinkValue] = useState('');
@@ -328,30 +328,53 @@ export default function App() {
   );
 
   const StatusDashboard = ({ order }: { order: any }) => (
-    <div style={{...styles.card, border: '2px solid #0071e3', background:'#f0f7ff'}}>
-        <h3 style={{textAlign:'center', color:'#0071e3', marginTop:0}}>
+    <div style={{...styles.card, border: '2px solid #0071e3', background:'#f0f7ff', textAlign:'center'}}>
+        <h3 style={{color:'#0071e3', marginTop:0, fontSize:'20px'}}>
             {order.status === 'completed' ? '✅ 作業完了' : '⏳ 作業中 / 待機中'}
         </h3>
         
-        <div style={{textAlign:'center', marginBottom:'15px'}}>
-            <div style={{fontSize:'12px', color:'#777'}}>注文番号: #{order.id}</div>
-            <div style={{fontSize:'14px', fontWeight:'bold'}}>{order.services}</div>
+        <div style={{marginBottom:'20px', padding:'15px', background:'#fff', borderRadius:'10px', display:'inline-block', minWidth:'250px'}}>
+            <div style={{fontSize:'12px', color:'#777', marginBottom:'5px'}}>注文番号: #{order.id}</div>
+            <div style={{fontSize:'16px', fontWeight:'bold'}}>{order.services}</div>
+            <div style={{fontSize:'14px', color:'#0071e3', marginTop:'5px'}}>¥{order.totalPrice}</div>
         </div>
 
-        {order.status === 'completed' ? (
-            <div style={{textAlign:'center'}}>
-                <p>作業が完了しました！<br/>ゲームにログインして確認してください。</p>
-                {order.proofImageUrl && (
-                    <div style={{margin:'15px 0'}}>
-                        <img src={order.proofImageUrl} alt="完了証拠" style={{maxWidth:'100%', borderRadius:'10px', boxShadow:'0 5px 15px rgba(0,0,0,0.1)'}} />
+        {order.status !== 'completed' && (
+            <div style={{marginBottom:'20px'}}>
+                <p style={{fontSize:'14px', lineHeight:'1.6', fontWeight:'bold', color:'#333'}}>
+                    現在作業中です。完了までしばらくお待ちください。<br/>
+                    (通常、数分〜数時間で完了します)
+                </p>
+                <div style={{background:'#fff', padding:'15px', borderRadius:'10px', fontSize:'13px', color:'#555', textAlign:'left', border:'1px solid #ddd'}}>
+                    <strong>⚠️ 重要なお知らせ</strong><br/>
+                    完了通知はDiscordのDMで送信されます。<br/>
+                    もし通知が届かない場合や、24時間経過しても完了しない場合は、以下のサポートサーバーでチケットを作成し、注文番号 <strong>#{order.id}</strong> を添えてご連絡ください。
+                </div>
+                <a href="https://discord.gg/YOUR_INVITE_CODE" target="_blank" rel="noreferrer" style={{...styles.checkoutBtn, display:'inline-block', textDecoration:'none', fontSize:'14px', background:'#5865F2', marginTop:'15px', width:'100%', boxSizing:'border-box'}}>
+                    👾 サポートサーバーに参加する
+                </a>
+            </div>
+        )}
+
+        {order.status === 'completed' && (
+            <div>
+                <p style={{fontWeight:'bold', fontSize:'16px'}}>作業が完了しました！</p>
+                <p style={{fontSize:'14px'}}>ゲームにログインして内容をご確認ください。</p>
+                
+                {order.proofImageUrl ? (
+                    <div style={{margin:'20px 0'}}>
+                        <img src={order.proofImageUrl} alt="完了証拠" style={{maxWidth:'100%', borderRadius:'10px', boxShadow:'0 5px 15px rgba(0,0,0,0.1)', border:'1px solid #ddd'}} />
+                        <div style={{fontSize:'12px', color:'#777', marginTop:'5px'}}>完了スクリーンショット</div>
+                    </div>
+                ) : (
+                    <div style={{margin:'20px 0', padding:'15px', background:'#eee', borderRadius:'10px', fontSize:'12px', color:'#555'}}>
+                        (完了画像が表示されない場合は、Discordをご確認ください)
                     </div>
                 )}
-                <button onClick={() => setActiveOrder(null)} style={{...styles.checkoutBtn, background:'#333', fontSize:'14px'}}>新しい注文をする</button>
-            </div>
-        ) : (
-            <div style={{textAlign:'center'}}>
-                <div style={{fontSize:'40px', margin:'20px 0'}}>🔄</div>
-                <p>現在作業中です。しばらくお待ちください。<br/>この画面のまま待機するか、Discordの通知をお待ちください。</p>
+                
+                <button onClick={() => setActiveOrder(null)} style={{...styles.checkoutBtn, background:'#333', fontSize:'14px', marginTop:'10px'}}>
+                    新しい注文をする
+                </button>
             </div>
         )}
     </div>
@@ -495,7 +518,6 @@ export default function App() {
       setShowModal(true);
       setFormOpen(false);
       setSelected([]);
-      // 注文完了後すぐに最新状態を取得してダッシュボードへ遷移
       setTimeout(() => {
           fetch(`${API_BASE}/api/my-order?discordId=${discordUser.id}`)
                 .then(r => r.json())
@@ -582,7 +604,6 @@ export default function App() {
       </header>
 
       <main style={styles.main}>
-        {/* アクティブな注文があれば表示、なければ通常メニュー */}
         {activeOrder && activeOrder.status !== 'scrubbed' ? (
             <StatusDashboard order={activeOrder} />
         ) : view === 'main' ? (
