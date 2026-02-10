@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 
-const API_BASE = "https://worker.nasserl.workers.dev";
+const API_BASE = "https://worker.nasserl.workers.dev"; // WorkersのURL
+
+// Discord設定
 const DISCORD_CLIENT_ID = "1456569335190388951"; 
 const REDIRECT_URI = "https://kenji123.f5.si/"; 
 const SUPPORT_SERVER_URL = "https://discord.gg/YOUR_INVITE_CODE"; 
 
-// 商品データ (前回と同じ)
+// 商品データの定義
 const DAIKO_CATEGORIES = [
   {
     id: 'basic_services_80',
     name: '💰 80円 基本強化パック',
     description: 'ゲーム進行の基礎となる必須アイテムをお得に強化。',
     items: [
-      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約99999）まで増加。' },
-      { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値（約99999999）まで増加。' },
+      { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約99999）まで増加。ガチャ引き放題！' },
+      { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値（約99999999）まで増加。キャラ強化に必須！' },
       { id: 't_norm', name: '通常チケ(100枚)', price: 80, description: '通常チケットを上限の100枚まで付与。' },
       { id: 't_rare', name: 'レアチケ(100枚)', price: 80, description: 'レアチケットを上限の100枚まで付与。' },
       { id: 'st_one', name: '1ステージ開放', price: 80, description: '攻略が難しいステージを1つ指定して開放。' },
@@ -73,7 +75,7 @@ const ACC_ITEMS = [
 const DAIKO_LIST = DAIKO_CATEGORIES.flatMap(category => category.items);
 const ACC_LIST = ACC_ITEMS;
 
-// スタイル定義 (Light/Darkモード対応)
+// スタイル定義
 const getStyles = (isDark: boolean) => ({
   container: {
     fontFamily: '"Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif',
@@ -277,7 +279,22 @@ const getStyles = (isDark: boolean) => ({
     textAlign: 'center' as const,
     boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
   },
-});
+  adminContainer: {
+    background: '#121212',
+    color: '#e0e0e0',
+    minHeight: '100vh',
+    padding: '20px',
+    fontFamily: 'monospace',
+  },
+  adminCard: {
+    background: '#1e1e1e',
+    border: '1px solid #333',
+    padding: '15px',
+    borderRadius: '10px',
+    position: 'relative' as const,
+    boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+  },
+};
 
 export default function App() {
   const [view, setView] = useState<'main' | 'daiko' | 'account' | 'settings'>('main');
@@ -498,16 +515,28 @@ export default function App() {
     };
 
     try {
-      await fetch(`${API_BASE}/api/sync-order`, { method: 'POST', body: JSON.stringify(order), headers: { 'Content-Type': 'application/json' } });
-      setModalMsg("✅ 注文を受け付けました！\n完了時にBotからDMが届きます。\n(BotからのDMを許可しておいてください)");
-      setShowModal(true);
-      setFormOpen(false);
-      setSelected([]);
-      setTimeout(() => {
-          fetch(`${API_BASE}/api/my-order?discordId=${discordUser.id}`)
-                .then(r => r.json())
-                .then(d => { if(d.found) setActiveOrder(d.order); });
-      }, 1000);
+      const res = await fetch(`${API_BASE}/api/sync-order`, { method: 'POST', body: JSON.stringify(order), headers: { 'Content-Type': 'application/json' } });
+      const resData = await res.json();
+      
+      if (resData.success) {
+          setModalMsg("✅ 注文を受け付けました！\n完了時にBotからDMが届きます。");
+          setShowModal(true);
+          setFormOpen(false);
+          setSelected([]);
+          
+          const newOrder = {
+              id: resData.orderId,
+              status: 'pending',
+              services: order.services,
+              totalPrice: order.total,
+              proofImageUrl: null
+          };
+          setActiveOrder(newOrder);
+          
+      } else {
+          setModalMsg("❌ サーバーエラー: " + resData.error);
+          setShowModal(true);
+      }
     } catch (err) {
       setModalMsg("❌ 送信エラーが発生しました。");
       setShowModal(true);
@@ -617,45 +646,45 @@ export default function App() {
 
   if (isAdmin) {
     if (!isLoggedIn) return (
-      <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', height:'100vh', background:'#111', color:'#fff'}}>
+      <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', height:'100vh', background:'#121212', color:'#fff'}}>
         <h1>WEI ADMIN</h1>
-        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={{padding:'10px', borderRadius:'5px', border:'none', marginBottom:'10px', fontSize:'16px'}} placeholder="Password" />
+        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={{padding:'10px', borderRadius:'5px', border:'none', marginBottom:'10px', fontSize:'16px', background:'#333', color:'#fff'}} placeholder="Password" />
         <button onClick={() => refreshAdmin(password)} style={styles.checkoutBtn}>LOGIN</button>
       </div>
     );
     return (
       <div style={styles.adminContainer}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
-          <h2>魏 司令官：管理画面</h2>
-          <button onClick={()=>{setIsLoggedIn(false); localStorage.removeItem('admin_pw'); setPassword(''); setData(null);}} style={{background:'#e74c3c', color:'#fff', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer'}}>Logout</button>
+          <h2 style={{margin:0}}>魏 司令官：管理画面</h2>
+          <button onClick={()=>{setIsLoggedIn(false); localStorage.removeItem('admin_pw'); setPassword(''); setData(null);}} style={{background:'#cf6679', color:'#fff', border:'none', padding:'8px 15px', borderRadius:'5px', cursor:'pointer'}}>Logout</button>
         </div>
         <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))', gap:'15px'}}>
           {data?.orders?.map((o: any) => (
-            <div key={o.id} style={{background:'#222', border:'1px solid #444', padding:'15px', borderRadius:'10px', position:'relative'}}>
+            <div key={o.id} style={styles.adminCard}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
-                <span style={{background:'#0071e3', padding:'2px 8px', borderRadius:'4px', fontSize:'12px'}}>#{o.id}</span>
-                <strong>{o.username}</strong>
-                <span style={{color:'#4af', fontWeight:'bold'}}>¥{o.totalPrice}</span>
+                <span style={{background:'#0071e3', padding:'2px 8px', borderRadius:'4px', fontSize:'12px', color:'#fff'}}>#{o.id}</span>
+                <strong style={{color:'#fff'}}>{o.username}</strong>
+                <span style={{color:'#03dac6', fontWeight:'bold'}}>¥{o.totalPrice}</span>
               </div>
               <div style={{fontSize:'12px', color:'#aaa', marginBottom:'5px'}}>
                 <div>📅 {new Date(o.createdAt || Date.now()).toLocaleString()}</div>
-                <div>🔒 IP: <span style={{color:'#ff4444'}}>{o.ipAddress}</span></div>
+                <div>🔒 IP: <span style={{color:'#ff5252'}}>{o.ipAddress}</span></div>
                 <div>🆔 Device: {o.browserId}</div>
               </div>
-              <div style={{background:'#000', padding:'10px', borderRadius:'5px', fontFamily:'monospace', fontSize:'12px', wordBreak:'break-all', marginBottom:'10px'}}>
-                <div style={{color:'#888'}}>引き継ぎ情報:</div>
-                ID: <span style={{color:'#fff', fontWeight:'bold'}}>{o.transferCode}</span><br/>
-                PW: <span style={{color:'#fff', fontWeight:'bold'}}>{o.authPassword}</span>
+              <div style={{background:'#000', padding:'10px', borderRadius:'5px', fontFamily:'monospace', fontSize:'12px', wordBreak:'break-all', marginBottom:'10px', color:'#ccc'}}>
+                <div style={{color:'#888', marginBottom:'2px'}}>引き継ぎ情報:</div>
+                ID: <span style={{color:'#fff', fontWeight:'bold', fontSize:'14px'}}>{o.transferCode}</span><br/>
+                PW: <span style={{color:'#fff', fontWeight:'bold', fontSize:'14px'}}>{o.authPassword}</span>
               </div>
-              <div style={{fontSize:'12px', marginBottom:'10px', padding:'5px', background:'rgba(255,255,255,0.05)', borderRadius:'5px'}}>
-                <strong>注文内容:</strong><br/>
+              <div style={{fontSize:'12px', marginBottom:'10px', padding:'8px', background:'rgba(255,255,255,0.05)', borderRadius:'5px', color:'#ddd'}}>
+                <strong style={{color:'#bbb'}}>注文内容:</strong><br/>
                 {o.services}
               </div>
               <div style={{display:'flex', gap:'5px', flexWrap:'wrap'}}>
                 <input type="file" id={`f-${o.id}`} style={{display:'none'}} onChange={(e)=>adminAction(o.id, 'complete', {image: e.target.files![0], userId: o.userId})} />
-                <button onClick={()=>document.getElementById(`f-${o.id}`)?.click()} style={{flex:1, background:'#28a745', color:'#fff', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer'}}>✅ 完了通知</button>
-                <button onClick={()=>adminAction(o.id, 'scrub')} style={{flex:1, background:'#555', border:'none', color:'#fff', borderRadius:'5px', padding:'8px', cursor:'pointer'}}>🗑️ 抹消</button>
-                <a href={o.paypayUrl} target="_blank" rel="noreferrer" style={{flex:1, background:'#fff', color:'#000', textDecoration:'none', padding:'8px', borderRadius:'5px', fontSize:'12px', textAlign:'center', display:'flex', alignItems:'center', justifyContent:'center'}}>PayPay確認</a>
+                <button onClick={()=>document.getElementById(`f-${o.id}`)?.click()} style={{flex:1, background:'#4caf50', color:'#fff', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer', fontWeight:'bold'}}>✅ 完了通知</button>
+                <button onClick={()=>adminAction(o.id, 'scrub')} style={{flex:1, background:'#757575', border:'none', color:'#fff', borderRadius:'5px', padding:'8px', cursor:'pointer'}}>🗑️ 抹消</button>
+                <a href={o.paypayUrl} target="_blank" rel="noreferrer" style={{flex:1, background:'#fff', color:'#000', textDecoration:'none', padding:'8px', borderRadius:'5px', fontSize:'12px', textAlign:'center', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'bold'}}>PayPay</a>
               </div>
             </div>
           ))}
@@ -699,7 +728,6 @@ export default function App() {
             <StatusDashboard order={activeOrder} />
         ) : view === 'main' && !formOpen ? (
           <>
-            {/* メインメニュー */}
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginBottom:'30px'}}>
               <div onClick={() => setView('daiko')} style={styles.card}>
                 <div style={{fontSize:'40px', marginBottom:'10px'}}>🎮</div>
@@ -722,7 +750,6 @@ export default function App() {
             </div>
           </>
         ) : formOpen ? (
-            // 注文フォーム
             <div ref={formRef} style={styles.formContainer}>
                 <h2 style={{textAlign:'center', marginBottom:'20px', color: styles.container.color}}>注文情報の入力</h2>
                 <form onSubmit={handleSubmit}>
@@ -752,7 +779,6 @@ export default function App() {
                 </form>
             </div>
         ) : (
-            // 商品リスト
             <div>
                 <div style={{marginBottom:'20px', display:'flex', alignItems:'center', gap:'10px'}}>
                     <button onClick={() => { setView('main'); setFormOpen(false); }} style={{background:'none', border:'none', color:'#0071e3', fontSize:'16px', cursor:'pointer'}}>← 戻る</button>
