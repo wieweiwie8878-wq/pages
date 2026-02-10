@@ -5,7 +5,7 @@ const API_BASE = "https://worker.nasserl.workers.dev"; // WorkersのURL
 // Discord設定
 const DISCORD_CLIENT_ID = "1456569335190388951"; 
 const REDIRECT_URI = "https://kenji123.f5.si/"; 
-const SUPPORT_SERVER_URL = "https://discord.gg/t68XQeTtx8"; 
+const SUPPORT_SERVER_URL = "https://discord.gg/t68XQeTtx8"; // ★実際の招待コードに置き換えてください
 
 // 商品データの定義
 const DAIKO_CATEGORIES = [
@@ -121,7 +121,6 @@ const getStyles = (isDark: boolean) => ({
   categoryHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    // S  <-- このSがエラーの原因でした。削除済み
     alignItems: 'center',
     padding: '15px',
     background: isDark ? '#333' : '#fff',
@@ -534,6 +533,7 @@ export default function App() {
                 </div>
             )}
             
+            {/* メニューに戻るボタン */}
             <button onClick={() => { setActiveOrder(null); setView('main'); }} style={{width:'100%', background:'none', border:'none', color: isDark?'#aaa':'#555', marginTop:'20px', cursor:'pointer'}}>← メニューに戻る</button>
         </div>
     );
@@ -931,6 +931,14 @@ export default function App() {
                 現在、全ての代行メニューが通常通りご利用いただけます。<br/>
                 BAN保証オプションの加入を強く推奨しております。
               </p>
+              {discordUser && activeOrder && (
+                  <button 
+                      onClick={() => { setActiveOrder(activeOrder); setView('main'); setFormOpen(false); }} 
+                      style={{...styles.checkoutBtn, background:'#0071e3', color:'#fff', width:'100%', marginTop:'15px', padding:'10px 20px', fontSize:'14px'}}
+                  >
+                      📦 注文状況を確認する
+                  </button>
+              )}
             </div>
           </>
         ) : formOpen ? (
