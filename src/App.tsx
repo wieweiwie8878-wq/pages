@@ -121,7 +121,7 @@ const getStyles = (isDark: boolean) => ({
   categoryHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    S
+    // S  <-- このSがエラーの原因でした。削除済み
     alignItems: 'center',
     padding: '15px',
     background: isDark ? '#333' : '#fff',
@@ -534,7 +534,7 @@ export default function App() {
                 </div>
             )}
             
-            <button onClick={() => setView('main')} style={{width:'100%', background:'none', border:'none', color: isDark?'#aaa':'#555', marginTop:'20px', cursor:'pointer'}}>← メニューに戻る</button>
+            <button onClick={() => { setActiveOrder(null); setView('main'); }} style={{width:'100%', background:'none', border:'none', color: isDark?'#aaa':'#555', marginTop:'20px', cursor:'pointer'}}>← メニューに戻る</button>
         </div>
     );
   };
