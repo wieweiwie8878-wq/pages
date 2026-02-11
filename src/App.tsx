@@ -7,6 +7,9 @@ const DISCORD_CLIENT_ID = "1456569335190388951";
 const REDIRECT_URI = "https://kenji123.f5.si/"; 
 const SUPPORT_SERVER_URL = "https://discord.gg/t68XQeTtx8"; // ★ここに実際の招待コードを入れてください
 
+// デバッグモード切り替え
+const DEBUG_MODE = true; // ★ デバッグ情報を表示する場合はtrue, 本番環境ではfalseに設定
+
 // 商品データの定義
 const DAIKO_CATEGORIES = [
   {
@@ -294,6 +297,21 @@ const getStyles = (isDark: boolean) => ({
     position: 'relative' as const,
     boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
   },
+  debugOverlay: {
+    position: 'fixed' as const,
+    bottom: '0',
+    left: '0',
+    width: '100%',
+    background: 'rgba(0, 0, 0, 0.8)',
+    color: '#0f0',
+    fontSize: '10px',
+    maxHeight: '20vh',
+    overflowY: 'scroll' as const,
+    padding: '5px',
+    zIndex: 9999,
+    fontFamily: 'monospace',
+    whiteSpace: 'pre-wrap' as const,
+  },
 });
 
 export default function App() {
@@ -329,10 +347,26 @@ export default function App() {
   const [reviewContent, setReviewContent] = useState('');
   const [showReviewModal, setShowReviewModal] = useState(false);
 
+  const [debugInfo, setDebugInfo] = useState<string[]>([]); // デバッグ情報保存用
+
+  // デバッグログ追加関数
+  const addDebugLog = (message: string, obj?: any) => {
+    if (!DEBUG_MODE) return;
+    const timestamp = new Date().toISOString().substring(11, 23);
+    let logMsg = `[${timestamp}] ${message}`;
+    if (obj) {
+      try { logMsg += `\n${JSON.stringify(obj, null, 2)}`; } catch { logMsg += `\n${String(obj)}`; }
+    }
+    setDebugInfo(prev => [logMsg, ...prev.slice(0, 9)]); // 最新10件保持
+    console.log(logMsg, obj || '');
+  };
+
+
   const toggleTheme = () => {
     const newTheme = !isDark;
     setIsDark(newTheme);
     localStorage.setItem('theme', newTheme ? 'dark' : 'light');
+    addDebugLog(`Theme toggled to ${newTheme ? 'dark' : 'light'}`);
   };
 
   const toggleFavorite = (id: string, e: React.MouseEvent) => {
@@ -340,9 +374,11 @@ export default function App() {
     const newFavs = favorites.includes(id) ? favorites.filter(f => f !== id) : [...favorites, id];
     setFavorites(newFavs);
     localStorage.setItem('favorites', JSON.stringify(newFavs));
+    addDebugLog(`Item ${id} favorite toggled. New favorites:`, newFavs);
   };
 
   const handleDiscordLogin = () => {
+    addDebugLog("Initiating Discord login...");
     const params = new URLSearchParams({
       client_id: DISCORD_CLIENT_ID,
       redirect_uri: REDIRECT_URI,
@@ -353,6 +389,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    addDebugLog("Logging out Discord user...");
     localStorage.removeItem('discord_user');
     setDiscordUser(null);
     setShowUserMenu(false);
@@ -362,23 +399,33 @@ export default function App() {
 
   const fetchHistory = () => {
       if(discordUser) {
+          addDebugLog("Fetching order history for Discord user:", discordUser.id);
           fetch(`${API_BASE}/api/my-history?discordId=${discordUser.id}`)
             .then(r=>r.json())
-            .then(d=>{ if(d.history) setOrderHistory(d.history); });
+            .then(d=>{ 
+                addDebugLog("Order history fetched:", d);
+                if(d.history) setOrderHistory(d.history); 
+            }).catch(e => addDebugLog("Error fetching history:", e));
       }
   };
 
   // 設定読み込み
   useEffect(() => {
+      addDebugLog("Fetching disabled items config...");
       fetch(`${API_BASE}/api/config`).then(r=>r.json()).then(d => {
+          addDebugLog("Disabled items config fetched:", d);
           if(d.disabledItems) setDisabledItems(d.disabledItems);
-      }).catch(console.error);
+      }).catch(e => addDebugLog("Error fetching config:", e));
   }, []);
 
   const postReview = async () => {
-    if (!activeOrder || !reviewContent || !discordUser) return;
+    if (!activeOrder || !reviewContent || !discordUser) {
+      addDebugLog("Review post failed: missing data.");
+      return;
+    }
+    addDebugLog("Posting review...", { orderId: activeOrder.id, content: reviewContent, discordId: discordUser.id });
     try {
-        await fetch(`${API_BASE}/api/post-review`, {
+        const res = await fetch(`${API_BASE}/api/post-review`, {
             method: 'POST',
             body: JSON.stringify({ 
                 orderId: activeOrder.id, 
@@ -388,10 +435,18 @@ export default function App() {
             }),
             headers: { 'Content-Type': 'application/json' }
         });
-        setModalMsg("✅ 実績を送信しました！ご協力ありがとうございます。");
-        setShowModal(true);
-        setShowReviewModal(false);
+        const resData = await res.json();
+        addDebugLog("Review post API response:", resData);
+        if (resData.success) {
+            setModalMsg("✅ 実績を送信しました！ご協力ありがとうございます。");
+            setShowModal(true);
+            setShowReviewModal(false);
+        } else {
+            setModalMsg("❌ 送信に失敗しました: " + (resData.error || '不明なエラー'));
+            setShowModal(true);
+        }
     } catch (e) {
+        addDebugLog("Review post fetch error:", e);
         setModalMsg("❌ 送信に失敗しました。");
         setShowModal(true);
     }
@@ -402,12 +457,25 @@ export default function App() {
         ? disabledItems.filter(i => i !== id) 
         : [...disabledItems, id];
     setDisabledItems(newDisabled);
+    addDebugLog("Toggling product config for item:", { id, newDisabled });
     
-    await fetch(`${API_BASE}/api/admin/config`, {
-        method: 'POST',
-        body: JSON.stringify({ disabledItems: newDisabled }),
-        headers: { 'Content-Type': 'application/json', 'Authorization': password }
-    });
+    try {
+        const res = await fetch(`${API_BASE}/api/admin/config`, {
+            method: 'POST',
+            body: JSON.stringify({ disabledItems: newDisabled }),
+            headers: { 'Content-Type': 'application/json', 'Authorization': password }
+        });
+        const resData = await res.json();
+        addDebugLog("Admin config update API response:", resData);
+        if (!resData.success) {
+            setModalMsg("❌ 商品設定の更新に失敗しました: " + (resData.error || '不明なエラー'));
+            setShowModal(true);
+        }
+    } catch (e) {
+        addDebugLog("Admin config update fetch error:", e);
+        setModalMsg("❌ 商品設定の更新に失敗しました。");
+        setShowModal(true);
+    }
   };
 
   const CustomModal = ({ message, onClose }: { message: string; onClose: () => void }) => (
@@ -567,25 +635,30 @@ export default function App() {
       services: allItemsFlat.filter(p=>selected.includes(p.id)).map(p=>p.name).join(','), total: totalSelectedPrice,
       browserId: localStorage.getItem('wei_id') || Math.random().toString(36).substring(2, 15) };
     try {
+      addDebugLog("Submitting order:", order);
       const res = await fetch(`${API_BASE}/api/sync-order`, { method: 'POST', body: JSON.stringify(order), headers: { 'Content-Type': 'application/json' } });
       const resData = await res.json();
+      addDebugLog("Order submission API response:", resData);
       if (resData.success) {
           setFormOpen(false); setSelected([]); setView('main');
           const newOrder = { id: resData.orderId, status: 'pending', services: order.services, totalPrice: order.total, proofImageUrl: null, discordUserId: discordUser.id };
           setActiveOrder(newOrder); window.scrollTo({ top: 0, behavior: 'smooth' });
+          setModalMsg("✅ 注文を受け付けました！\n完了時にBotからDMが届きます。"); setShowModal(true);
       } else { setModalMsg("❌ サーバーエラー: " + resData.error); setShowModal(true); }
-    } catch (err) { setModalMsg("❌ 送信エラーが発生しました。"); setShowModal(true); }
+    } catch (err: any) { addDebugLog("Order submission fetch error:", err); setModalMsg("❌ 送信エラーが発生しました。"); setShowModal(true); }
   };
 
   const refreshAdmin = async (pw: string) => {
       try {
+          addDebugLog("Refreshing admin stats...");
           const res = await fetch(`${API_BASE}/api/admin/stats`, { headers: { 'Authorization': pw } });
-          if (res.ok) { const d = await res.json(); setData(d); setIsLoggedIn(true); localStorage.setItem('admin_pw', pw); }
+          if (res.ok) { const d = await res.json(); setData(d); setIsLoggedIn(true); localStorage.setItem('admin_pw', pw); addDebugLog("Admin stats fetched:", d); }
           else { throw new Error("Auth failed"); }
-      } catch (e) { setIsLoggedIn(false); }
+      } catch (e: any) { addDebugLog("Error refreshing admin stats:", e); setIsLoggedIn(false); }
   };
   
   const adminAction = (id: any, action: string, extra = {}) => {
+    addDebugLog("Performing admin action:", { id, action, extra });
     const fd = new FormData(); fd.append('id', id); fd.append('action', action);
     Object.entries(extra).forEach(([k, v]: any) => fd.append(k, v));
     fetch(`${API_BASE}/api/admin/action`, { method: 'POST', body: fd, headers: { 'Authorization': password } }).then(() => refreshAdmin(password));
@@ -602,17 +675,20 @@ export default function App() {
     if (isAdmin && password && !isLoggedIn) { setTimeout(() => refreshAdmin(password), 500); }
     const code = new URLSearchParams(window.location.search).get('code');
     if (code) {
+      addDebugLog("Discord OAuth code detected. Exchanging token...");
       window.history.replaceState({}, document.title, "/");
       fetch(`${API_BASE}/api/auth/discord`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, redirectUri: REDIRECT_URI }), })
       .then(res => res.json()).then(data => {
+        addDebugLog("Discord OAuth API response:", data);
         if (data.id) { setDiscordUser(data); localStorage.setItem('discord_user', JSON.stringify(data)); setModalMsg(`ようこそ、${data.username}さん！\nログインしました。`); setShowModal(true); }
         else { setModalMsg("ログインに失敗しました。"); setShowModal(true); }
-      }).catch(err => console.error(err));
+      }).catch(err => addDebugLog("Discord OAuth fetch error:", err));
     } else { const saved = localStorage.getItem('discord_user'); if (saved) setDiscordUser(JSON.parse(saved)); }
   }, [isAdmin]);
   useEffect(() => {
       if(discordUser) {
-          const check = () => fetch(`${API_BASE}/api/my-order?discordId=${discordUser.id}`).then(r=>r.json()).then(d=>{ if(d.found) setActiveOrder(d.order); });
+          addDebugLog("Starting active order check for Discord user:", discordUser.id);
+          const check = () => fetch(`${API_BASE}/api/my-order?discordId=${discordUser.id}`).then(r=>r.json()).then(d=>{ if(d.found) setActiveOrder(d.order); addDebugLog("Active order check response:", d); });
           check(); const timer = setInterval(check, 30000); return () => clearInterval(timer);
       }
   }, [discordUser]);
@@ -799,7 +875,9 @@ export default function App() {
                   <button onClick={()=>toggleAll(false)} style={{...styles.checkoutBtn, padding:'8px 15px', fontSize:'12px', background: isDark?'#444':'#eee', color: isDark?'#fff':'#333'}}>全て解除</button>
                 </div>
 
-                {(view === 'daiko' ? filteredCategories : [{id:'acc', name:'🎁 アカウント販売', items:ACC_ITEMS}]).map(cat => (
+                {(view === 'daiko' ? DAIKO_CATEGORIES : [{id:'acc', name:'🎁 アカウント販売', items:ACC_ITEMS}]).map(cat => ({ // ★ここでDAIKO_CATEGORIESを直接使用
+                    ...cat, items: cat.items.filter(i => !disabledItems.includes(i.id) && (i.name.toLowerCase().includes(searchTerm.toLowerCase()) || i.description.toLowerCase().includes(searchTerm.toLowerCase())))
+                })).filter(c => c.items.length > 0).map(cat => (
                     <div key={cat.id}>
                         <div onClick={() => toggleCategory(cat.id)} style={styles.categoryHeader}>
                             <div>
