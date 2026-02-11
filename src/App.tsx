@@ -537,7 +537,6 @@ export default function App() {
     );
   };
 
-  // --- Main Logic & Handlers ---
   const checkLogin = () => {
     if (!discordUser) {
       setModalMsg("⚠️ 商品を選択するにはDiscordログインが必要です。\n\nログインして続行しますか？");
@@ -616,7 +615,6 @@ export default function App() {
           check(); const timer = setInterval(check, 30000); return () => clearInterval(timer);
       }
   }, [discordUser]);
-
   // --- Render (Admin) ---
   if (isAdmin) {
     if (!isLoggedIn) return (
@@ -668,7 +666,12 @@ export default function App() {
                 <input type="file" id={`f-${o.id}`} style={{display:'none'}} onChange={(e)=>adminAction(o.id, 'complete', {image: e.target.files![0], userId: o.userId})} />
                 <button onClick={()=>document.getElementById(`f-${o.id}`)?.click()} style={{flex:1, background:'#4caf50', color:'#fff', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer', fontWeight:'bold'}}>✅ 完了</button>
                 <button onClick={()=>adminAction(o.id, 'scrub')} style={{flex:1, background:'#757575', border:'none', color:'#fff', borderRadius:'5px', padding:'8px', cursor:'pointer'}}>🗑️ 抹消</button>
-                <button onClick={() => window.open(o.paypayUrl, '_blank')} style={{flex:1, background:'#fff', color:'#000', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer', fontWeight:'bold', fontSize:'12px', display:'flex', alignItems:'center', justifyContent:'center'}}>PayPay</button>
+                <button 
+                    onClick={() => window.open(o.paypayUrl, '_blank')} 
+                    style={{flex:1, background:'#fff', color:'#000', border:'none', borderRadius:'5px', padding:'8px', cursor:'pointer', fontWeight:'bold', fontSize:'12px', display:'flex', alignItems:'center', justifyContent:'center'}}
+                >
+                    PayPay
+                </button>
               </div>
             </div>
           ))}
@@ -750,7 +753,7 @@ export default function App() {
               <h3 style={{margin:'0 0 10px 0', fontSize:'16px', color: isDark?'#fff':'#333'}}>📢 お知らせ</h3>
               <p style={{margin:0, fontSize:'14px', color: isDark?'#ccc':'#333'}}>現在、全ての代行メニューが通常通りご利用いただけます。<br/>BAN保証オプションの加入を強く推奨しております。</p>
               {discordUser && activeOrder && (
-                  <button onClick={() => { setView('main'); setFormOpen(false); }} style={{...styles.checkoutBtn, background:'#0071e3', color:'#fff', width:'100%', marginTop:'15px', padding:'10px 20px', fontSize:'14px'}}>
+                  <button onClick={() => { setActiveOrder(activeOrder); setView('main'); setFormOpen(false); }} style={{...styles.checkoutBtn, background:'#0071e3', color:'#fff', width:'100%', marginTop:'15px', padding:'10px 20px', fontSize:'14px'}}>
                       📦 注文状況を確認する
                   </button>
               )}
