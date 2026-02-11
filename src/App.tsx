@@ -8,7 +8,7 @@ const REDIRECT_URI = "https://kenji123.f5.si/";
 const SUPPORT_SERVER_URL = "https://discord.gg/t68XQeTtx8"; // ★ここに実際の招待コードを入れてください
 
 // デバッグモード切り替え
-const DEBUG_MODE = false; // ★ デバッグ情報を表示する場合はtrue, 本番環境ではfalseに設定
+const DEBUG_MODE = true; // ★ デバッグ情報を表示する場合はtrue, 本番環境ではfalseに設定
 
 // 商品データの定義
 const DAIKO_CATEGORIES = [
@@ -494,9 +494,9 @@ export default function App() {
     }
   };
 
-  // --- Component Definitions (UserMenu, CustomModal, ReviewModal, StatusDashboard, SettingsView) ---
-  // これらのコンポーネントは、Appコンポーネント関数内にネストして定義します。
-  // これにより、Appコンポーネントのステートや関数（addDebugLogなど）にアクセスできます。
+  // --- Component Definitions ---
+  // これらのコンポーネントは、Appコンポーネント関数内にネストして定義することで、
+  // Appコンポーネントのステートや関数（addDebugLogなど）にアクセスできます。
 
   const CustomModal = ({ message, onClose }: { message: string; onClose: () => void }) => (
     <div style={styles.modalOverlay}>
@@ -1025,4 +1025,3 @@ export default function App() {
     </div>
   );
 }
-
