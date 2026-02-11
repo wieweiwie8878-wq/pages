@@ -8,7 +8,7 @@ const REDIRECT_URI = "https://kenji123.f5.si/";
 const SUPPORT_SERVER_URL = "https://discord.gg/t68XQeTtx8"; // ★ここに実際の招待コードを入れてください
 
 // デバッグモード切り替え
-const DEBUG_MODE = true; // ★ デバッグ情報を表示する場合はtrue, 本番環境ではfalseに設定
+const DEBUG_MODE = false; // ★ デバッグ情報を表示する場合はtrue, 本番環境ではfalseに設定
 
 // 商品データの定義
 const DAIKO_CATEGORIES = [
@@ -1025,3 +1025,4 @@ export default function App() {
     </div>
   );
 }
+
