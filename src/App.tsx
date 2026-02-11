@@ -19,7 +19,7 @@ const DAIKO_CATEGORIES = [
     items: [
       { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約99999）まで増加。' },
       { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値（約99999999）まで増加。' },
-      { id: 't_norm', price: 80, description: '通常チケットを上限の100枚まで付与。' },
+      { id: 't_norm', name: '通常チケ(100枚)', price: 80, description: '通常チケットを上限の100枚まで付与。' },
       { id: 't_rare', name: 'レアチケ(100枚)', price: 80, description: 'レアチケットを上限の100枚まで付与。' },
       { id: 'st_one', name: '1ステージ開放', price: 80, description: '攻略が難しいステージを1つ指定して開放。' },
     ]
@@ -875,8 +875,9 @@ export default function App() {
                   <button onClick={()=>toggleAll(false)} style={{...styles.checkoutBtn, padding:'8px 15px', fontSize:'12px', background: isDark?'#444':'#eee', color: isDark?'#fff':'#333'}}>全て解除</button>
                 </div>
 
-                {(view === 'daiko' ? DAIKO_CATEGORIES : [{id:'acc', name:'🎁 アカウント販売', items:ACC_ITEMS}]).map(cat => ({ // ★ここでDAIKO_CATEGORIESを直接使用
-                    ...cat, items: cat.items.filter(i => !disabledItems.includes(i.id) && (i.name.toLowerCase().includes(searchTerm.toLowerCase()) || i.description.toLowerCase().includes(searchTerm.toLowerCase())))
+                {/* view === 'daiko' の商品リスト */}
+                {view === 'daiko' && DAIKO_CATEGORIES.map(cat => ({ // filteredCategories の定義はuseMemoに移動済み
+                    ...cat, items: cat.items.filter(i => !disabledItems.includes(i.id) && (i.name && i.name.toLowerCase().includes(searchTerm.toLowerCase()) || (i.description && i.description.toLowerCase().includes(searchTerm.toLowerCase()))))
                 })).filter(c => c.items.length > 0).map(cat => (
                     <div key={cat.id}>
                         <div onClick={() => toggleCategory(cat.id)} style={styles.categoryHeader}>
@@ -899,13 +900,27 @@ export default function App() {
                                                 {item.name}
                                                 <span onClick={(e)=>toggleFavorite(item.id, e)} style={{marginLeft:'8px', cursor:'pointer', color: favorites.includes(item.id) ? '#ffd700' : '#ccc'}}>★</span>
                                             </div>
-                                            <div style={{fontSize:'11px', color:'#888'}}>{item.description}</div>
+                                            {item.description && <div style={{fontSize:'11px', color:'#888'}}>{item.description}</div>}
                                         </div>
                                         <div style={{...styles.itemPrice, color:'#0071e3'}}>¥{item.price}</div>
                                     </div>
                                 ))}
                             </div>
                         )}
+                    </div>
+                ))}
+                
+                {/* view === 'account' の商品リスト */}
+                {view === 'account' && ACC_ITEMS.filter(item => !disabledItems.includes(item.id) && (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase()) || (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase())))).map(item => (
+                    <div key={item.id} onClick={() => toggleItem(item.id)} style={{...styles.item, ...(selected.includes(item.id) ? styles.itemSelected : {})}}>
+                        <div style={{flex:1}}>
+                            <div style={{fontWeight:'bold', fontSize:'14px', color: isDark?'#fff':'#333'}}>
+                                {item.name}
+                                <span onClick={(e)=>toggleFavorite(item.id, e)} style={{marginLeft:'8px', cursor:'pointer', color: favorites.includes(item.id) ? '#ffd700' : '#ccc'}}>★</span>
+                            </div>
+                            {item.description && <div style={{fontSize:'11px', color:'#888'}}>{item.description}</div>}
+                        </div>
+                        <div style={{...styles.itemPrice, color:'#0071e3'}}>¥{item.price}</div>
                     </div>
                 ))}
             </div>
