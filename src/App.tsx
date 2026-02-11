@@ -19,7 +19,7 @@ const DAIKO_CATEGORIES = [
     items: [
       { id: 'neko', name: '猫缶カンスト', price: 80, description: '猫缶を最大値（約99999）まで増加。' },
       { id: 'xp', name: 'XPカンスト', price: 80, description: 'XPを最大値（約99999999）まで増加。' },
-      { id: 't_norm', name: '通常チケ(100枚)', price: 80, description: '通常チケットを上限の100枚まで付与。' },
+      { id: 't_norm', price: 80, description: '通常チケットを上限の100枚まで付与。' },
       { id: 't_rare', name: 'レアチケ(100枚)', price: 80, description: 'レアチケットを上限の100枚まで付与。' },
       { id: 'st_one', name: '1ステージ開放', price: 80, description: '攻略が難しいステージを1つ指定して開放。' },
     ]
@@ -445,7 +445,7 @@ export default function App() {
             setModalMsg("❌ 送信に失敗しました: " + (resData.error || '不明なエラー'));
             setShowModal(true);
         }
-    } catch (e) {
+    } catch (e: any) {
         addDebugLog("Review post fetch error:", e);
         setModalMsg("❌ 送信に失敗しました。");
         setShowModal(true);
@@ -471,7 +471,7 @@ export default function App() {
             setModalMsg("❌ 商品設定の更新に失敗しました: " + (resData.error || '不明なエラー'));
             setShowModal(true);
         }
-    } catch (e) {
+    } catch (e: any) {
         addDebugLog("Admin config update fetch error:", e);
         setModalMsg("❌ 商品設定の更新に失敗しました。");
         setShowModal(true);
@@ -923,7 +923,10 @@ export default function App() {
 
       {showModal && <CustomModal message={modalMsg} onClose={() => { setShowModal(false); if(modalMsg.includes('注文を受け付け')) window.location.reload(); }} />}
       {showReviewModal && <ReviewModal />}
+      {DEBUG_MODE && <div style={styles.debugOverlay}>
+        <h3>DEBUG LOG</h3>
+        {debugInfo.map((log, index) => <div key={index}>{log}</div>)}
+      </div>}
     </div>
   );
 }
-
