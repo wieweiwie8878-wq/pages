@@ -361,6 +361,22 @@ export default function App() {
     console.log(logMsg, obj || '');
   };
 
+  // ★★★ totalSelectedPrice と filteredCategories の定義をここに移動 ★★★
+  const allItemsFlat = useMemo(() => [...DAIKO_LIST, ...ACC_LIST], []);
+  const totalSelectedPrice = useMemo(() => selected.reduce((sum, id) => sum + (allItemsFlat.find(p=>p.id===id)?.price || 0), 0), [selected, allItemsFlat]);
+
+  const filteredCategories = useMemo(() => {
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return DAIKO_CATEGORIES.map(c => ({
+      ...c, items: c.items.filter(i => 
+        !disabledItems.includes(i.id) && 
+        ( (i.name && i.name.toLowerCase().includes(lowerSearchTerm)) || 
+          (i.description && i.description.toLowerCase().includes(lowerSearchTerm)) )
+      )
+    })).filter(c => c.items.length > 0);
+  }, [searchTerm, disabledItems]);
+  // ★★★ ここまでが移動したuseMemoフックの定義 ★★★
+
 
   const toggleTheme = () => {
     const newTheme = !isDark;
@@ -875,8 +891,7 @@ export default function App() {
                   <button onClick={()=>toggleAll(false)} style={{...styles.checkoutBtn, padding:'8px 15px', fontSize:'12px', background: isDark?'#444':'#eee', color: isDark?'#fff':'#333'}}>全て解除</button>
                 </div>
 
-                {/* view === 'daiko' の商品リスト */}
-                {view === 'daiko' && DAIKO_CATEGORIES.map(cat => ({ // filteredCategories の定義はuseMemoに移動済み
+                {(view === 'daiko' ? DAIKO_CATEGORIES : [{id:'acc', name:'🎁 アカウント販売', items:ACC_ITEMS}]).map(cat => ({ // filteredCategories の定義はuseMemoに移動済み
                     ...cat, items: cat.items.filter(i => !disabledItems.includes(i.id) && (i.name && i.name.toLowerCase().includes(searchTerm.toLowerCase()) || (i.description && i.description.toLowerCase().includes(searchTerm.toLowerCase()))))
                 })).filter(c => c.items.length > 0).map(cat => (
                     <div key={cat.id}>
