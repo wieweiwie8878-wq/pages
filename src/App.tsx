@@ -8,7 +8,7 @@ const REDIRECT_URI = "https://kenji123.f5.si/";
 const SUPPORT_SERVER_URL = "https://discord.gg/t68XQeTtx8"; // ★ここに実際の招待コードを入れてください
 
 // デバッグモード切り替え
-const DEBUG_MODE = false; // ★ デバッグ情報を表示する場合はtrue, 本番環境ではfalseに設定
+const DEBUG_MODE = true; // ★ デバッグ情報を表示する場合はtrue, 本番環境ではfalseに設定
 
 // 商品データの定義
 const DAIKO_CATEGORIES = [
@@ -361,7 +361,7 @@ export default function App() {
     console.log(logMsg, obj || '');
   };
 
-  // ★★★ totalSelectedPrice と filteredCategories の定義をここに移動 ★★★
+  // ★★★ useMemo フックの定義をここに移動し、確実に参照可能に ★★★
   const allItemsFlat = useMemo(() => [...DAIKO_LIST, ...ACC_LIST], []);
   const totalSelectedPrice = useMemo(() => selected.reduce((sum, id) => sum + (allItemsFlat.find(p=>p.id===id)?.price || 0), 0), [selected, allItemsFlat]);
 
@@ -375,7 +375,7 @@ export default function App() {
       )
     })).filter(c => c.items.length > 0);
   }, [searchTerm, disabledItems]);
-  // ★★★ ここまでが移動したuseMemoフックの定義 ★★★
+  // ★★★ ここまでが useMemo フックの定義 ★★★
 
 
   const toggleTheme = () => {
@@ -494,6 +494,10 @@ export default function App() {
     }
   };
 
+  // --- Component Definitions (UserMenu, CustomModal, ReviewModal, StatusDashboard, SettingsView) ---
+  // これらのコンポーネントは、Appコンポーネント関数内にネストして定義します。
+  // これにより、Appコンポーネントのステートや関数（addDebugLogなど）にアクセスできます。
+
   const CustomModal = ({ message, onClose }: { message: string; onClose: () => void }) => (
     <div style={styles.modalOverlay}>
       <div style={styles.modalContent}>
@@ -524,6 +528,67 @@ export default function App() {
             <button onClick={postReview} style={{...styles.checkoutBtn, width:'100%'}}>送信する</button>
             <button onClick={() => setShowReviewModal(false)} style={{width:'100%', background:'none', border:'none', color:'#777', marginTop:'10px', cursor:'pointer'}}>キャンセル</button>
         </div>
+    </div>
+  );
+
+  const UserMenu = () => (
+    <div style={styles.userMenu}>
+        <div style={{...styles.menuItem, borderBottom: isDark?'1px solid #444':'1px solid #eee', cursor:'default', fontWeight:'bold'}}>
+            {discordUser.username}
+        </div>
+        <div onClick={()=>{ fetchHistory(); setView('settings'); setShowUserMenu(false); }} style={{...styles.menuItem, ':hover':{background: isDark?'#444':'#eee'}}}>
+            ⚙️ 設定・履歴
+        </div>
+        <div onClick={toggleTheme} style={styles.menuItem}>
+            {isDark ? '☀️ ライトモード' : '🌙 ダークモード'}
+        </div>
+        <div onClick={handleLogout} style={{...styles.menuItem, color:'#e74c3c'}}>
+            🚪 ログアウト
+        </div>
+    </div>
+  );
+
+  const SettingsView = () => (
+    <div style={styles.main}>
+        <h2 style={{color: styles.container.color}}>ユーザー設定</h2>
+        <div style={styles.card}>
+            <div style={{display:'flex', alignItems:'center', gap:'15px', marginBottom:'20px'}}>
+                <img src={`https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`} style={{width:'60px', borderRadius:'50%'}} alt="Avatar"/>
+                <div>
+                    <div style={{fontSize:'18px', fontWeight:'bold', color: styles.container.color}}>{discordUser.username}</div>
+                    <div style={{fontSize:'12px', color:'#777'}}>ID: {discordUser.id}</div>
+                </div>
+            </div>
+            
+            <h3 style={{color: styles.container.color, marginTop:'30px'}}>📦 注文履歴</h3>
+            {orderHistory.length > 0 ? (
+                <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+                    {orderHistory.map(order => (
+                        <div key={order.id} style={{background: isDark?'#333':'#f9f9f9', padding:'15px', borderRadius:'10px', fontSize:'14px', color: styles.container.color}}>
+                            <div style={{display:'flex', justifyContent:'space-between', marginBottom:'5px'}}>
+                                <div style={{fontWeight:'bold'}}>#{order.id}</div>
+                                <div style={{
+                                    color: order.status === 'completed' ? '#4caf50' : 
+                                           order.status === 'in_progress' ? '#fbc02d' : 
+                                           order.status === 'scrubbed' ? '#999' : '#0071e3',
+                                    fontWeight:'bold'
+                                }}>
+                                    {order.status === 'completed' ? '完了' : 
+                                     order.status === 'in_progress' ? '作業中' : 
+                                     order.status === 'scrubbed' ? '抹消済' : '受付'}
+                                </div>
+                            </div>
+                            <div style={{fontSize:'12px', color:'#888', marginBottom:'5px'}}>{new Date(order.createdAt || Date.now()).toLocaleString()}</div>
+                            <div>{order.services}</div>
+                            <div style={{marginTop:'5px', color:'#0071e3', fontWeight:'bold'}}>¥{order.totalPrice}</div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <p style={{color: styles.container.color}}>履歴はありません。</p>
+            )}
+        </div>
+        <button onClick={()=>setView('main')} style={{...styles.checkoutBtn, background:'#777', width:'100%'}}>戻る</button>
     </div>
   );
 
@@ -960,4 +1025,3 @@ export default function App() {
     </div>
   );
 }
-
