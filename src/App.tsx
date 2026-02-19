@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 
-// 環境変数 または WorkerのURL (あなたの環境に合わせて変更可能)
+// 環境変数 または WorkerのURL
 const API_BASE = import.meta.env.VITE_API_URL || "https://worker.nasserl.workers.dev"; 
 
 const DISCORD_CLIENT_ID = "1456569335190388951"; 
-// ▼▼▼ 修正: 末尾のスラッシュを削除して固定 (これが重要) ▼▼▼
+// ▼▼▼ 修正: 末尾のスラッシュを削除して固定 ▼▼▼
 const REDIRECT_URI = "https://kenji123.f5.si"; 
 const SUPPORT_SERVER_URL = "https://discord.gg/t68XQeTtx8"; 
 
@@ -114,7 +114,7 @@ const getStyles = (isDark: boolean) => ({
     borderRadius: '10px',
     boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
   },
-  // ▼▼▼ システム停止時のオーバーレイデザイン ▼▼▼
+  // ▼▼▼ システム停止時のオーバーレイ ▼▼▼
   errorOverlay: {
     position: 'fixed' as const,
     top: 0, left: 0, right: 0, bottom: 0,
@@ -140,7 +140,6 @@ export default function App() {
   const [password, setPassword] = useState(localStorage.getItem('admin_pw') || '');
   const [data, setData] = useState<any>(null);
   
-  // admin.xxx または ?admin=true で管理者モード判定
   const isAdmin = window.location.hostname.startsWith('admin.') || new URLSearchParams(window.location.search).get('admin') === 'true';
 
   const [isDark, setIsDark] = useState(localStorage.getItem('theme') === 'dark');
@@ -151,7 +150,7 @@ export default function App() {
   const [reviewContent, setReviewContent] = useState('');
   const [showReviewModal, setShowReviewModal] = useState(false);
 
-  // ▼▼▼ Botステータス管理 ▼▼▼
+  // Botステータス管理
   const [botStatus, setBotStatus] = useState<'online' | 'offline' | 'loading'>('loading');
   const [lastSeen, setLastSeen] = useState<number>(0);
 
@@ -168,7 +167,7 @@ export default function App() {
 
   useEffect(() => {
       checkStatus();
-      const timer = setInterval(checkStatus, 60000); // 1分ごとにチェック
+      const timer = setInterval(checkStatus, 60000); 
       return () => clearInterval(timer);
   }, []);
 
@@ -198,14 +197,12 @@ export default function App() {
   const fetchUserData = async () => {
       if(discordUser) {
           try {
-            // 最新の注文
             const resOrder = await fetch(`${API_BASE}/api/my-order?discordId=${discordUser.id}`);
             if (resOrder.ok) {
                 const d = await resOrder.json();
                 if(d.found) setActiveOrder(d.order);
                 else setActiveOrder(null);
             }
-            // 履歴
             const resHist = await fetch(`${API_BASE}/api/my-history?discordId=${discordUser.id}`);
             if (resHist.ok) {
                 const d = await resHist.json();
@@ -426,7 +423,7 @@ export default function App() {
     );
   };
 
-  // ▼▼▼ Bot停止時の警告画面 (管理者は除く) ▼▼▼
+  // ▼▼▼ Bot停止時の警告画面 ▼▼▼
   if (botStatus === 'offline' && !isAdmin) {
       return (
           <div style={styles.errorOverlay}>
@@ -521,7 +518,6 @@ export default function App() {
       <header style={styles.header}>
         <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
              <h1 style={styles.headerTitle} onClick={()=>window.location.reload()}>WEI STATUS</h1>
-             {/* Botステータスインジケーター */}
              <div style={{fontSize:'12px', padding:'4px 10px', borderRadius:'15px', background: botStatus==='online'?'#d4edda':'#f8d7da', color: botStatus==='online'?'#155724':'#721c24', display:'flex', alignItems:'center', gap:'5px'}}>
                  <span style={{width:'8px', height:'8px', borderRadius:'50%', background: botStatus==='online'?'#28a745':'#dc3545', display:'inline-block'}}></span>
                  {botStatus === 'online' ? 'Bot稼働中' : botStatus === 'loading' ? '確認中...' : 'Bot停止中'}
@@ -562,7 +558,6 @@ export default function App() {
             </div>
         ) : (
             <div>
-                {/* 最新の注文状況 */}
                 {activeOrder ? (
                     <StatusDashboard order={activeOrder} />
                 ) : (
@@ -572,7 +567,6 @@ export default function App() {
                     </div>
                 )}
 
-                {/* 注文履歴リスト */}
                 <h3 style={{color: isDark?'#fff':'#333', marginTop:'40px', fontSize:'18px', borderBottom: isDark?'1px solid #333':'1px solid #eee', paddingBottom:'10px'}}>📜 注文履歴</h3>
                 {orderHistory.length > 0 ? (
                     <div style={{display:'flex', flexDirection:'column', gap:'15px', marginTop:'20px'}}>
