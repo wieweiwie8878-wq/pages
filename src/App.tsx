@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 // 環境変数 VITE_API_URL があればそれを使い、なければ仮のURLを使用
 // ※デプロイ後にWorkerのURLが決まったら、Cloudflare Pagesの環境変数設定で VITE_API_URL を設定するか、ここを直接書き換えてください。
-const API_BASE = import.meta.env.VITE_API_URL || "https://あなたのWorker名.workers.dev"; 
+const API_BASE = import.meta.env.VITE_API_URL || "https://worker.nasserl.workers.dev/"; 
 
 const DISCORD_CLIENT_ID = "1456569335190388951"; 
 
@@ -549,3 +549,4 @@ export default function App() {
     </div>
   );
 }
+
