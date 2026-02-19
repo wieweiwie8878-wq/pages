@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
-// 環境変数 VITE_API_URL があればそれを使い、なければ仮のURLを使用
-// ※デプロイ後にWorkerのURLが決まったら、Cloudflare Pagesの環境変数設定で VITE_API_URL を設定するか、ここを直接書き換えてください。
+// 環境変数 または WorkerのURL (あなたの環境に合わせて変更可能)
 const API_BASE = import.meta.env.VITE_API_URL || "https://worker.nasserl.workers.dev"; 
-const DISCORD_CLIENT_ID = "1456569335190388951"; 
 
-// 現在のページURLをリダイレクト先に設定 (localhostでも本番でも動くように)
-const REDIRECT_URI = "https://kenji123.f5.si";
+const DISCORD_CLIENT_ID = "1456569335190388951"; 
+// ▼▼▼ 修正: 末尾のスラッシュを削除して固定 (これが重要) ▼▼▼
+const REDIRECT_URI = "https://kenji123.f5.si"; 
 const SUPPORT_SERVER_URL = "https://discord.gg/t68XQeTtx8"; 
 
 const getStyles = (isDark: boolean) => ({
@@ -114,6 +113,20 @@ const getStyles = (isDark: boolean) => ({
     padding: '15px',
     borderRadius: '10px',
     boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+  },
+  // ▼▼▼ システム停止時のオーバーレイデザイン ▼▼▼
+  errorOverlay: {
+    position: 'fixed' as const,
+    top: 0, left: 0, right: 0, bottom: 0,
+    background: isDark ? '#111' : '#fff',
+    color: isDark ? '#fff' : '#333',
+    zIndex: 9999,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '20px',
+    textAlign: 'center' as const,
   }
 });
 
@@ -137,6 +150,27 @@ export default function App() {
   
   const [reviewContent, setReviewContent] = useState('');
   const [showReviewModal, setShowReviewModal] = useState(false);
+
+  // ▼▼▼ Botステータス管理 ▼▼▼
+  const [botStatus, setBotStatus] = useState<'online' | 'offline' | 'loading'>('loading');
+  const [lastSeen, setLastSeen] = useState<number>(0);
+
+  const checkStatus = async () => {
+      try {
+          const res = await fetch(`${API_BASE}/api/system-status`);
+          const d = await res.json();
+          setBotStatus(d.online ? 'online' : 'offline');
+          setLastSeen(d.lastSeen);
+      } catch {
+          setBotStatus('offline');
+      }
+  };
+
+  useEffect(() => {
+      checkStatus();
+      const timer = setInterval(checkStatus, 60000); // 1分ごとにチェック
+      return () => clearInterval(timer);
+  }, []);
 
   const toggleTheme = () => {
     const newTheme = !isDark;
@@ -229,8 +263,6 @@ export default function App() {
     const fd = new FormData(); 
     fd.append('id', id); 
     fd.append('action', action);
-    
-    // 画像ファイルなどの追加データをFormDataに追加
     Object.entries(extra).forEach(([k, v]: any) => fd.append(k, v));
 
     try {
@@ -258,7 +290,7 @@ export default function App() {
     // Discord OAuth Callback
     const code = new URLSearchParams(window.location.search).get('code');
     if (code) {
-      window.history.replaceState({}, document.title, "/"); // URLからcodeを消す
+      window.history.replaceState({}, document.title, "/"); 
       fetch(`${API_BASE}/api/auth/discord`, { 
           method: 'POST', 
           headers: { 'Content-Type': 'application/json' }, 
@@ -278,11 +310,10 @@ export default function App() {
     }
   }, [isAdmin]);
 
-  // 定期更新
   useEffect(() => {
       if(discordUser) {
           fetchUserData();
-          const timer = setInterval(fetchUserData, 15000); // 15秒ごとに更新
+          const timer = setInterval(fetchUserData, 15000); 
           return () => clearInterval(timer);
       }
   }, [discordUser]);
@@ -331,13 +362,9 @@ export default function App() {
 
   const StatusDashboard = ({ order }: { order: any }) => {
     const isCompleted = order.status === 'completed';
-    const isInProgress = order.status === 'in_progress' || order.status === 'pending'; // pendingも受付中として扱う
+    const isInProgress = order.status === 'in_progress' || order.status === 'pending'; 
     const isScrubbed = order.status === 'scrubbed';
-    
-    // 配列か文字列か判定して表示用のリストを作成
-    const serviceList = Array.isArray(order.services) 
-        ? order.services 
-        : (typeof order.services === 'string' ? order.services.split(',') : ['不明なサービス']);
+    const serviceList = Array.isArray(order.services) ? order.services : (typeof order.services === 'string' ? order.services.split(',') : ['不明なサービス']);
 
     return (
         <div style={{...styles.card, border: `2px solid ${isCompleted ? '#4caf50' : isInProgress ? '#0071e3' : '#999'}`, background: isDark?'#222':'#fff', marginBottom: '30px'}}>
@@ -364,7 +391,6 @@ export default function App() {
                 </div>
             </div>
 
-            {/* 進行状況表示 */}
             {!isCompleted && !isScrubbed && (
                 <div style={{marginTop:'10px'}}>
                      <div style={{height:'6px', background: isDark?'#444':'#eee', borderRadius:'3px', position:'relative', overflow:'hidden'}}>
@@ -399,6 +425,33 @@ export default function App() {
         </div>
     );
   };
+
+  // ▼▼▼ Bot停止時の警告画面 (管理者は除く) ▼▼▼
+  if (botStatus === 'offline' && !isAdmin) {
+      return (
+          <div style={styles.errorOverlay}>
+              <div style={{fontSize:'60px', marginBottom:'20px'}}>⚠️</div>
+              <h1 style={{color: '#e74c3c', fontSize:'28px', marginBottom:'10px'}}>Botシステム停止中</h1>
+              <p style={{fontSize:'16px', maxWidth:'600px', lineHeight:'1.6', marginBottom:'20px'}}>
+                  現在、Botシステムとの通信が確立できません。<br/>
+                  代行サービスまたはBotがメンテナンス中か、予期せぬエラーで停止しています。
+              </p>
+              
+              <div style={{background: isDark?'#222':'#f9f9f9', padding:'20px', borderRadius:'10px', width: '100%', maxWidth: '500px', textAlign:'left', borderLeft:'5px solid #e74c3c', marginBottom: '30px'}}>
+                  <p style={{margin:'5px 0'}}><strong>🛑 最終生存確認:</strong> {lastSeen > 0 ? new Date(lastSeen).toLocaleString() : '履歴なし'}</p>
+                  <p style={{margin:'5px 0'}}><strong>🛑 停止開始時刻:</strong> {lastSeen > 0 ? new Date(lastSeen + 120000).toLocaleString() + ' 頃' : '不明'}</p>
+                  <p style={{margin:'5px 0'}}><strong>🔧 復旧見込み:</strong> 未定 (管理者が対応中)</p>
+              </div>
+
+              <div style={{textAlign: 'center'}}>
+                  <p style={{marginBottom: '10px'}}>大変申し訳ございません。お急ぎの場合はサポートサーバーへお越しください。</p>
+                  <a href={SUPPORT_SERVER_URL} target="_blank" rel="noreferrer" style={{background:'#5865F2', color:'#fff', padding:'12px 30px', borderRadius:'30px', textDecoration:'none', fontWeight:'bold', display:'inline-block', boxShadow: '0 4px 10px rgba(88,101,242,0.4)'}}>
+                      🎫 サポートサーバーで問い合わせる
+                  </a>
+              </div>
+          </div>
+      );
+  }
 
   // --- Render (Admin) ---
   if (isAdmin) {
@@ -468,6 +521,11 @@ export default function App() {
       <header style={styles.header}>
         <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
              <h1 style={styles.headerTitle} onClick={()=>window.location.reload()}>WEI STATUS</h1>
+             {/* Botステータスインジケーター */}
+             <div style={{fontSize:'12px', padding:'4px 10px', borderRadius:'15px', background: botStatus==='online'?'#d4edda':'#f8d7da', color: botStatus==='online'?'#155724':'#721c24', display:'flex', alignItems:'center', gap:'5px'}}>
+                 <span style={{width:'8px', height:'8px', borderRadius:'50%', background: botStatus==='online'?'#28a745':'#dc3545', display:'inline-block'}}></span>
+                 {botStatus === 'online' ? 'Bot稼働中' : botStatus === 'loading' ? '確認中...' : 'Bot停止中'}
+             </div>
         </div>
         
         <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
@@ -548,7 +606,3 @@ export default function App() {
     </div>
   );
 }
-
-
-
-
